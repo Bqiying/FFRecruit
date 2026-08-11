@@ -1,0 +1,15 @@
+{
+  "_comment": "首次运行时请复制本文件为 config.json 并修改下方配置",
+
+  "api": {
+    "user_agent_project": "FFXIV-PF-History-Bot",
+    "contact_email": "your-email@example.com",
+    "referer": "https://xivpf.ff14.xin/",
+    "api_url": "https://xivpf.littlenightmare.top/api/listings"
+  },
+
+  "scraper": {
+    "interval_seconds": 120,
+    "per_page": 100
+  }
+}

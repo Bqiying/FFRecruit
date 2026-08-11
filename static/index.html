@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FFXIV 历史招募板搜索</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+<script src="https://unpkg.com/element-plus"></script>
+<script src="https://unpkg.com/@element-plus/icons-vue"></script>
+
+<style>
+/* ═════════ 主题变量 ═════════ */
+:root {
+  --bg: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 30%, #f5f3ff 60%, #faf5ff 100%);
+  --card-bg: rgba(255,255,255,0.85);
+  --card-border: rgba(255,255,255,0.8);
+  --card-shadow: 0 4px 24px rgba(99,102,241,0.06);
+  --header-bg: rgba(255,255,255,0.95);
+  --header-border: rgba(226,232,240,0.8);
+  --header-shadow: 0 1px 12px rgba(99,102,241,0.04);
+  --text-1: #1e293b;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --text-4: #cbd5e1;
+  --border-1: #e2e8f0;
+  --border-2: #f1f5f9;
+  --row-hover: linear-gradient(90deg, rgba(99,102,241,0.05), rgba(139,92,246,0.05));
+  --thead-bg: linear-gradient(180deg, #f8fafc, #f1f5f9);
+  --input-bg: #fff;
+  --input-border: #e2e8f0;
+  --chip-bg: #fff;
+  --chip-border: #e2e8f0;
+  --chip-text: #64748b;
+  --chip-cnt-bg: #f1f5f9;
+  --chip-cnt-text: #64748b;
+  --stat-bg: #fff;
+  --stat-border: #f1f5f9;
+  --duty-bg: linear-gradient(135deg, #eef2ff, #f5f3ff);
+  --duty-border: #c7d2fe;
+  --duty-text: #4f46e5;
+  --cat-bg: #ecfeff;
+  --cat-border: #a5f3fc;
+  --cat-text: #0e7490;
+  --desc-bg: #f8fafc;
+  --desc-border: #f1f5f9;
+  --skeleton: #f1f5f9;
+}
+html.dark {
+  --bg: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 30%, #1e1b4b 60%, #0f172a 100%);
+  --card-bg: rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.07);
+  --card-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --header-bg: rgba(15,15,35,0.85);
+  --header-border: rgba(255,255,255,0.06);
+  --header-shadow: 0 1px 12px rgba(0,0,0,0.3);
+  --text-1: #f1f5f9;
+  --text-2: #cbd5e1;
+  --text-3: #64748b;
+  --text-4: #475569;
+  --border-1: rgba(255,255,255,0.08);
+  --border-2: rgba(255,255,255,0.04);
+  --row-hover: linear-gradient(90deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1));
+  --thead-bg: linear-gradient(180deg, rgba(99,102,241,0.09), rgba(30,27,75,0.5));
+  --input-bg: rgba(255,255,255,0.05);
+  --input-border: rgba(255,255,255,0.1);
+  --chip-bg: rgba(255,255,255,0.05);
+  --chip-border: rgba(255,255,255,0.1);
+  --chip-text: #94a3b8;
+  --chip-cnt-bg: rgba(255,255,255,0.08);
+  --chip-cnt-text: #64748b;
+  --stat-bg: rgba(255,255,255,0.06);
+  --stat-border: rgba(255,255,255,0.08);
+  --duty-bg: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2));
+  --duty-border: rgba(99,102,241,0.3);
+  --duty-text: #a5b4fc;
+  --cat-bg: rgba(56,189,248,0.1);
+  --cat-border: rgba(56,189,248,0.25);
+  --cat-text: #7dd3fc;
+  --desc-bg: rgba(255,255,255,0.03);
+  --desc-border: rgba(255,255,255,0.05);
+  --skeleton: rgba(255,255,255,0.05);
+}
+
+html, body {
+  background: var(--bg);
+  min-height: 100vh;
+  font-family: 'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+  color: var(--text-1);
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ═════════ 卡片（无圆角） ═════════ */
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  border-radius: 0;
+  transition: background 0.3s, border 0.3s;
+}
+.card-header {
+  background: var(--header-bg);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--header-border);
+  box-shadow: var(--header-shadow);
+}
+
+/* ═════════ 数据行 + hover 放大 ═════════ */
+.data-row {
+  transition: transform 0.2s cubic-bezier(0.4,0,0.2,1), background 0.15s, box-shadow 0.2s, opacity 0.25s;
+  border-bottom: 1px solid var(--border-2);
+  position: relative;
+}
+.data-row:hover {
+  background: var(--row-hover);
+  transform: scale(1.012);
+  z-index: 5;
+  box-shadow: 0 4px 20px rgba(99,102,241,0.12);
+}
+.row-active { border-left: 3px solid #10b981; }
+.row-closed { border-left: 3px solid #ef4444; opacity: 0.5; }
+
+.table-header {
+  background: var(--thead-bg);
+  border-bottom: 2px solid var(--border-1);
+}
+
+/* ═════════ 双列卡片 hover 放大 ═════════ */
+.card-item {
+  transition: transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s, opacity 0.25s;
+}
+.card-item:hover {
+  transform: scale(1.025);
+  z-index: 5;
+  box-shadow: 0 8px 32px rgba(99,102,241,0.15);
+}
+
+/* ═════════ 状态点 ═════════ */
+.status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.dot-active {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
+  animation: pulse 2s ease-in-out infinite;
+}
+.dot-closed { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+  50% { box-shadow: 0 0 0 7px rgba(16,185,129,0.06); }
+}
+
+/* ═════════ 入场动画 ═════════ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeInUp 0.25s ease-out forwards; }
+
+/* ═════════ TransitionGroup 动画（不使用 position:absolute，避免卡死） ═════════ */
+/* 新项从下方滑入 */
+.list-enter-active { transition: all 0.18s ease-out; }
+.list-enter-from { opacity: 0; transform: translateY(10px); }
+.list-enter-to { opacity: 1; transform: translateY(0); }
+/* 旧项淡出 + 微右移，不移出文档流（不会引起 reflow 风暴） */
+.list-leave-active { transition: all 0.18s ease-in; opacity: 0; transform: translateX(40px); }
+/* 剩余项平滑移行，使用 FLIP */
+.list-move { transition: transform 0.2s cubic-bezier(0.4,0,0.2,1); }
+
+.truncate-1 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.truncate-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* ═════════ Element Plus 覆盖（无圆角） ═════════ */
+.el-input__wrapper, .el-select__wrapper, .el-date-editor.el-input__wrapper {
+  background: var(--input-bg) !important;
+  box-shadow: 0 0 0 1px var(--input-border) inset !important;
+  border-radius: 0 !important;
+  transition: box-shadow 0.2s !important;
+}
+.el-input__wrapper:hover, .el-select__wrapper:hover { box-shadow: 0 0 0 1px #a78bfa inset !important; }
+.el-input__wrapper.is-focus, .el-select__wrapper.is-focus { box-shadow: 0 0 0 2px #818cf8 inset !important; }
+.el-input__inner { color: var(--text-1) !important; }
+.el-select__placeholder { color: var(--text-3) !important; }
+
+.el-button { border-radius: 0 !important; font-weight: 600; transition: all 0.18s !important; }
+.el-button--primary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  border: none !important; box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important;
+}
+.el-button--primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.4) !important; }
+.el-button--default {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border-1) !important;
+  color: var(--text-2) !important;
+}
+.el-button--default:hover { border-color: #a78bfa !important; color: #6366f1 !important; }
+
+.el-pagination .btn-prev, .el-pagination .btn-next, .el-pagination .el-pager li {
+  background: var(--card-bg) !important; color: var(--text-2) !important; border-radius: 0 !important;
+}
+.el-pagination .el-pager li.is-active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; color: #fff !important;
+}
+
+/* el-select 下拉面板 */
+.el-select-dropdown { border-radius: 0 !important; }
+html.dark .el-select-dropdown {
+  background: #1e1b4b !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+}
+html.dark .el-select-dropdown__item { color: #cbd5e1 !important; }
+html.dark .el-select-dropdown__item.hover { background: rgba(99,102,241,0.15) !important; }
+html.dark .el-select-dropdown__item.selected { color: #a5b4fc !important; }
+html.dark .el-date-picker, html.dark .el-date-range-picker {
+  background: #1e1b4b !important; border: 1px solid rgba(255,255,255,0.1) !important;
+}
+html.dark .el-date-table th { color: #94a3b8 !important; }
+html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !important; }
+
+/* 标签 */
+.duty-badge { background: var(--duty-bg); border: 1px solid var(--duty-border); color: var(--duty-text); }
+.cat-badge { background: var(--cat-bg); border: 1px solid var(--cat-border); color: var(--cat-text); }
+
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: var(--text-4); }
+
+.chip-cnt {
+  display: inline-block; background: var(--chip-cnt-bg);
+  border-radius: 0; padding: 0 7px; font-size: 10px;
+  color: var(--chip-cnt-text); margin-left: 4px;
+}
+
+/* Logo 动画 */
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.logo-float { animation: float 3s ease-in-out infinite; }
+
+@keyframes countUp { from { opacity:0; transform: scale(0.8); } to { opacity:1; transform: scale(1); } }
+.stat-pill { animation: countUp 0.3s ease-out; position: relative; overflow: visible; }
+
+/* 数字跳动动画 */
+@keyframes numberBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.25); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.number-bump { animation: numberBump 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); display: inline-block; }
+
+/* 增量飘字动画 */
+@keyframes deltaFloat {
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  20% { opacity: 1; transform: translateY(-4px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-28px) scale(1); }
+}
+.delta-float {
+  position: absolute;
+  top: -2px;
+  right: -8px;
+  font-size: 11px;
+  font-weight: 800;
+  pointer-events: none;
+  animation: deltaFloat 1.1s ease-out forwards;
+  z-index: 10;
+}
+.delta-total { color: #6366f1; text-shadow: 0 1px 3px rgba(99,102,241,0.4); }
+.delta-active { color: #10b981; text-shadow: 0 1px 3px rgba(16,185,129,0.4); }
+
+/* ═════════ 筛选 chip（无圆角） ═════════ */
+.filter-chip {
+  display: inline-flex; align-items: center;
+  padding: 5px 14px; font-size: 13px;
+  background: var(--chip-bg); color: var(--chip-text);
+  border: 1px solid var(--chip-border); border-radius: 0;
+  cursor: pointer; transition: all 0.15s ease;
+  white-space: nowrap; user-select: none;
+}
+.filter-chip:hover {
+  border-color: #a78bfa; color: #6366f1;
+  transform: translateY(-1px); box-shadow: 0 2px 8px rgba(99,102,241,0.1);
+}
+.filter-chip-active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  color: #fff !important; border-color: transparent !important;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.35);
+}
+.filter-chip-green { border-color: #d1fae5; color: #059669; }
+.filter-chip-green:hover { border-color: #6ee7b7; }
+.filter-chip-green-active {
+  background: linear-gradient(135deg, #10b981, #34d399) !important;
+  color: #fff !important; border-color: transparent !important;
+  box-shadow: 0 2px 10px rgba(16,185,129,0.35);
+}
+.filter-chip-red { border-color: #fecaca; color: #dc2626; }
+.filter-chip-red:hover { border-color: #fca5a5; }
+.filter-chip-red-active {
+  background: linear-gradient(135deg, #ef4444, #f87171) !important;
+  color: #fff !important; border-color: transparent !important;
+  box-shadow: 0 2px 10px rgba(239,68,68,0.35);
+}
+.filter-chip-clear {
+  padding: 4px 10px; font-size: 12px;
+  background: #fef2f2; color: #ef4444;
+  border: 1px solid #fecaca; border-radius: 0;
+  cursor: pointer; transition: all 0.15s;
+}
+.filter-chip-clear:hover { background: #fee2e2; }
+.filter-chip-more {
+  padding: 5px 14px; font-size: 12px;
+  background: var(--chip-cnt-bg); color: #6366f1;
+  border: 1px dashed #c7d2fe; border-radius: 0;
+  cursor: pointer; transition: all 0.15s;
+}
+.filter-chip-more:hover { background: #eef2ff; border-style: solid; }
+
+/* ═════════ 主题切换按钮 ═════════ */
+.theme-toggle {
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--card-bg); border: 1px solid var(--border-1);
+  cursor: pointer; transition: all 0.25s;
+  font-size: 18px;
+}
+.theme-toggle:hover { border-color: #a78bfa; transform: rotate(15deg); }
+
+/* 骨架屏 */
+.skeleton-row {
+  height: 44px; background: var(--skeleton);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+</style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- ═════════ 顶栏 ═════════ -->
+  <header class="card-header sticky top-0 z-50">
+    <div class="max-w-[1500px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-3">
+        <div class="logo-float w-11 h-11 bg-gradient-to-br from-indigo-500 via-purple-500 to-violet-500 flex items-center justify-center text-xl shadow-lg shadow-indigo-300/50" style="border-radius:0">
+          <span>🎮</span>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-extrabold" style="color:var(--text-1)">FFXIV 历史招募板</h1>
+          <p class="text-xs" style="color:var(--text-3)">Party Finder History · 数据来自 xivpf.ff14.xin</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div v-if="stats" class="flex gap-2 text-xs">
+          <div class="stat-pill px-3.5 py-2 border" style="background:var(--stat-bg);border-color:var(--stat-border)">
+            <span style="color:var(--text-3)">总招募 </span>
+            <span :key="'tn_'+totalBumpKey" :class="{'number-bump': totalBumpTrigger}" class="text-indigo-600 font-bold">{{ stats.total_listings.toLocaleString() }}</span>
+            <span v-for="d in totalDeltas" :key="d.id" class="delta-float delta-total">+{{ d.value }}</span>
+          </div>
+          <div class="stat-pill px-3.5 py-2 border" style="background:var(--stat-bg);border-color:var(--stat-border)">
+            <span style="color:var(--text-3)">进行中 </span>
+            <span :key="'an_'+activeBumpKey" :class="{'number-bump': activeBumpTrigger}" class="text-emerald-600 font-bold">{{ stats.active_listings.toLocaleString() }}</span>
+            <span v-for="d in activeDeltas" :key="d.id" class="delta-float delta-active">+{{ d.value }}</span>
+          </div>
+        </div>
+        <button class="theme-toggle" @click="toggleIncludeTW"
+                :class="{ 'filter-chip-active': includeTW }"
+                :title="includeTW ? '点击隐藏繁中服（伊弗利特、利維坦等）' : '点击显示繁中服'"
+                style="padding:0 10px;font-size:13px;width:auto;gap:4px">
+          <span>🟡</span><span style="font-weight:600">{{ includeTW ? '繁中显示中' : '繁中已隐藏' }}</span>
+        </button>
+        <button class="theme-toggle" @click="toggleTheme" :title="isDark ? '切换浅色' : '切换深色'">
+          {{ isDark ? '☀️' : '🌙' }}
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-[1500px] mx-auto px-4 sm:px-6 py-4 space-y-3">
+
+    <!-- ═════════ 筛选工具栏 ═════════ -->
+    <section class="card p-4 fade-in">
+      <!-- 醒目的关键词搜索栏 -->
+      <div class="flex items-center gap-2 mb-3">
+        <el-input
+          v-model="filter.keyword" placeholder="🔍 搜索招募说明关键词，如「绝亚」「7换1」「萌新教学」..."
+          clearable size="large" @keyup.enter="onSearch"
+          style="flex:1;max-width:600px"
+        />
+        <el-button type="primary" size="large" :loading="loading" @click="onSearch">
+          <el-icon><Search /></el-icon>&nbsp;搜索
+        </el-button>
+      </div>
+
+      <div class="flex items-center gap-2 mb-3">
+        <el-icon class="text-indigo-500"><Filter /></el-icon>
+        <span class="text-sm font-semibold" style="color:var(--text-1)">筛选条件</span>
+        <span class="text-xs" style="color:var(--text-3)">点击按钮快速筛选，支持多级联动</span>
+      </div>
+
+      <div class="space-y-2.5">
+        <!-- 大区 -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-semibold w-16 shrink-0" style="color:var(--text-2)">🌐 大区</span>
+          <button v-for="dc in datacenters" :key="dc" @click="toggleDatacenter(dc)"
+            class="filter-chip" :class="{ 'filter-chip-active': filter.datacenter === dc }">{{ dc }}</button>
+          <button v-if="filter.datacenter" @click="clearDatacenter" class="filter-chip-clear">✕ 清除</button>
+        </div>
+
+        <!-- 服务器 -->
+        <div v-if="filter.datacenter && worlds.length > 0" class="flex items-center gap-2 flex-wrap fade-in">
+          <span class="text-xs font-semibold w-16 shrink-0" style="color:var(--text-2)">🖥 服务器</span>
+          <button v-for="w in worlds" :key="w" @click="toggleWorld(w)"
+            class="filter-chip" :class="{ 'filter-chip-active': filter.world === w }">{{ w }}</button>
+          <button v-if="filter.world" @click="filter.world = ''; onSearch()" class="filter-chip-clear">✕</button>
+        </div>
+
+        <!-- 状态 -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-semibold w-16 shrink-0" style="color:var(--text-2)">📊 状态</span>
+          <button @click="toggleStatus(null)" class="filter-chip" :class="{ 'filter-chip-active': filter.is_closed === null }">全部</button>
+          <button @click="toggleStatus(false)" class="filter-chip filter-chip-green" :class="{ 'filter-chip-green-active': filter.is_closed === false }">🟢 进行中</button>
+          <button @click="toggleStatus(true)" class="filter-chip filter-chip-red" :class="{ 'filter-chip-red-active': filter.is_closed === true }">🔴 已关闭</button>
+        </div>
+
+        <!-- 任务类型 → 下拉菜单 -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-semibold w-16 shrink-0" style="color:var(--text-2)">📂 类型</span>
+          <el-select v-model="filter.category" placeholder="选择任务类型" clearable filterable
+                     style="width: 220px" size="small" @change="onCategorySelect">
+            <el-option v-for="c in categories" :key="c.category" :value="c.category" :label="c.category">
+              <span>{{ c.category }}</span>
+              <span class="chip-cnt">{{ c.count }}</span>
+            </el-option>
+          </el-select>
+
+          <!-- 任务/副本 → 下拉菜单（选类型后出现） -->
+          <el-select v-if="filter.category && filteredDuties.length > 0"
+                     v-model="filter.duty_name" placeholder="选择任务/副本" clearable filterable
+                     style="width: 260px" size="small" @change="onSearch">
+            <el-option v-for="d in filteredDuties" :key="d.duty_id + '_' + d.duty_name"
+                       :value="d.duty_name" :label="`${d.duty_name} (${d.listing_count})`" />
+          </el-select>
+        </div>
+
+        <!-- 文本搜索行 -->
+        <div class="flex items-center gap-2 flex-wrap pt-1">
+          <span class="text-xs font-semibold w-16 shrink-0" style="color:var(--text-2)">🔍 队长</span>
+          <el-input v-model="filter.creator" placeholder="队长名" clearable @keyup.enter="onSearch"
+                    style="width: 180px" size="small" />
+          <el-date-picker v-model="filter.date_range" type="daterange" range-separator="~"
+            start-placeholder="开始" end-placeholder="结束" size="small"
+            value-format="YYYY-MM-DD" style="width: 260px" />
+        </div>
+      </div>
+
+      <!-- 底部操作栏 -->
+      <div class="flex flex-wrap items-center justify-between gap-2 mt-3.5 pt-3" style="border-top:1px solid var(--border-2)">
+        <div class="flex items-center gap-2">
+          <el-button-group>
+            <el-button size="small" :type="viewMode==='single'?'primary':'default'" @click="viewMode='single'">
+              <el-icon><Document /></el-icon>&nbsp;单行
+            </el-button>
+            <el-button size="small" :type="viewMode==='double'?'primary':'default'" @click="viewMode='double'">
+              <el-icon><Grid /></el-icon>&nbsp;双列
+            </el-button>
+          </el-button-group>
+          <span v-if="activeFilterCount > 0" class="text-xs ml-2" style="color:var(--text-3)">
+            已选 {{ activeFilterCount }} 个筛选条件
+            <button @click="onReset" class="text-indigo-500 hover:underline ml-1">清空全部</button>
+          </span>
+        </div>
+        <div class="flex gap-2">
+          <el-button size="default" @click="onReset">
+            <el-icon><Refresh /></el-icon>&nbsp;重置
+          </el-button>
+          <el-button type="primary" size="default" :loading="loading" @click="onSearch">
+            <el-icon><Search /></el-icon>&nbsp;搜索
+          </el-button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════ 统计栏 ═════════ -->
+    <div v-if="!loading && result.total_count >= 0" class="flex flex-wrap items-center justify-between gap-3 px-2 text-sm">
+      <span style="color:var(--text-2)">
+        共 <span class="text-indigo-600 font-bold">{{ result.total_count.toLocaleString() }}</span> 条 · 第
+        <span class="font-semibold" style="color:var(--text-1)">{{ filter.page }}</span> / {{ result.total_pages || 1 }} 页
+      </span>
+      <div class="flex gap-4 text-xs">
+        <span class="text-emerald-600">🟢 进行中</span>
+        <span class="text-red-500">🔴 已关闭</span>
+      </div>
+    </div>
+
+    <!-- 加载中 -->
+    <div v-if="loading" class="card p-4 space-y-1">
+      <div v-for="i in 8" :key="i" class="skeleton-row"></div>
+    </div>
+
+    <!-- 无数据 -->
+    <div v-else-if="result.items.length === 0" class="card p-16 text-center fade-in">
+      <div class="text-6xl mb-4 opacity-20">📭</div>
+      <p class="text-lg font-semibold" style="color:var(--text-2)">没有找到匹配的招募记录</p>
+      <p class="text-xs mt-2" style="color:var(--text-3)">爬虫每 2 分钟抓取一次新数据，请稍后再试</p>
+    </div>
+
+    <!-- ═════════ 单行模式（数据量大时禁用 TransitionGroup 避免卡顿） ═════════ -->
+    <div v-else-if="viewMode === 'single'" class="card overflow-hidden scrollbar-thin" style="overflow-x:auto;position:relative">
+      <div class="min-w-[1150px]">
+        <div class="table-header grid items-center gap-2 px-4 py-3 text-xs font-semibold"
+             style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px;color:var(--text-2)">
+          <span></span><span>状态</span><span>大区</span><span>发布服</span>
+          <span>队长 @ 服务器</span><span>人数</span><span>任务类型</span>
+          <span>任务 / 副本 · 招募说明</span><span>创建时间</span><span>存活</span>
+        </div>
+        <TransitionGroup v-if="result.items.length <= 100" name="list" tag="div">
+          <div
+            v-for="item in result.items" :key="item.listing_id"
+            class="data-row grid items-center gap-2 px-4 py-2.5 text-sm"
+            :class="item.is_closed ? 'row-closed' : 'row-active'"
+            style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px;"
+          >
+            <span class="status-dot" :class="item.is_closed ? 'dot-closed' : 'dot-active'"></span>
+            <span class="text-xs font-semibold" :class="item.is_closed ? 'text-red-500' : 'text-emerald-600'">
+              {{ item.is_closed ? '已关闭' : '进行中' }}
+            </span>
+            <span class="text-xs font-medium" style="color:var(--text-2)">{{ item.datacenter }}</span>
+            <span class="text-xs truncate" style="color:var(--text-3)" :title="item.world">{{ item.world || '-' }}</span>
+            <div class="flex items-center gap-1 min-w-0">
+              <span class="text-indigo-600 font-semibold truncate">{{ item.creator_name }}</span>
+              <span v-if="(item.home_world || item.world)" class="text-amber-600 text-xs truncate shrink-0">@{{ item.home_world || item.world }}</span>
+              <span v-if="item.has_password" class="text-yellow-500 text-xs flex-shrink-0">🔒</span>
+            </div>
+            <span class="text-xs font-mono" style="color:var(--text-3)">{{ getFilledCount(item) }}/{{ item.slots?.length || 0 }}</span>
+            <span v-if="item.category" class="cat-badge text-xs px-2 py-0.5 truncate" :title="item.category">{{ item.category }}</span>
+            <span v-else class="text-xs" style="color:var(--text-4)">—</span>
+            <div class="min-w-0 space-y-0.5">
+              <div v-if="item.duty_name" class="duty-badge text-xs px-2 py-0.5 inline-block truncate-1 max-w-full" :title="item.duty_name">{{ item.duty_name }}</div>
+              <div class="text-xs truncate-1" style="color:var(--text-2)" :title="item.description">{{ item.description || '（无描述）' }}</div>
+            </div>
+            <span class="text-xs font-mono" style="color:var(--text-3)">{{ formatTimeShort(item.first_seen_at) }}</span>
+            <span class="text-violet-600 text-xs font-bold">{{ formatDuration(item.duration_seconds) }}</span>
+          </div>
+        </TransitionGroup>
+        <!-- 数据量大时直接渲染，无动画 -->
+        <div v-else>
+          <div
+            v-for="item in result.items" :key="item.listing_id"
+            class="data-row grid items-center gap-2 px-4 py-2.5 text-sm"
+            :class="item.is_closed ? 'row-closed' : 'row-active'"
+            style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px;"
+          >
+            <span class="status-dot" :class="item.is_closed ? 'dot-closed' : 'dot-active'"></span>
+            <span class="text-xs font-semibold" :class="item.is_closed ? 'text-red-500' : 'text-emerald-600'">
+              {{ item.is_closed ? '已关闭' : '进行中' }}
+            </span>
+            <span class="text-xs font-medium" style="color:var(--text-2)">{{ item.datacenter }}</span>
+            <span class="text-xs truncate" style="color:var(--text-3)" :title="item.world">{{ item.world || '-' }}</span>
+            <div class="flex items-center gap-1 min-w-0">
+              <span class="text-indigo-600 font-semibold truncate">{{ item.creator_name }}</span>
+              <span v-if="(item.home_world || item.world)" class="text-amber-600 text-xs truncate shrink-0">@{{ item.home_world || item.world }}</span>
+              <span v-if="item.has_password" class="text-yellow-500 text-xs flex-shrink-0">🔒</span>
+            </div>
+            <span class="text-xs font-mono" style="color:var(--text-3)">{{ getFilledCount(item) }}/{{ item.slots?.length || 0 }}</span>
+            <span v-if="item.category" class="cat-badge text-xs px-2 py-0.5 truncate" :title="item.category">{{ item.category }}</span>
+            <span v-else class="text-xs" style="color:var(--text-4)">—</span>
+            <div class="min-w-0 space-y-0.5">
+              <div v-if="item.duty_name" class="duty-badge text-xs px-2 py-0.5 inline-block truncate-1 max-w-full" :title="item.duty_name">{{ item.duty_name }}</div>
+              <div class="text-xs truncate-1" style="color:var(--text-2)" :title="item.description">{{ item.description || '（无描述）' }}</div>
+            </div>
+            <span class="text-xs font-mono" style="color:var(--text-3)">{{ formatTimeShort(item.first_seen_at) }}</span>
+            <span class="text-violet-600 text-xs font-bold">{{ formatDuration(item.duration_seconds) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════ 双列卡片模式 ═════════ -->
+    <TransitionGroup v-else-if="result.items.length <= 100" name="list" tag="div" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div
+        v-for="item in result.items" :key="item.listing_id"
+        class="card card-item p-4"
+        :class="item.is_closed ? 'row-closed' : 'row-active'"
+      >
+        <div class="flex items-start justify-between gap-2 mb-2.5 flex-wrap">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="status-dot" :class="item.is_closed ? 'dot-closed' : 'dot-active'"></span>
+            <span class="text-xs font-semibold" :class="item.is_closed ? 'text-red-500' : 'text-emerald-600'">
+              {{ item.is_closed ? '已关闭' : '进行中' }}
+            </span>
+            <span v-if="item.category" class="cat-badge text-xs px-2 py-0.5">{{ item.category }}</span>
+            <span v-if="item.duty_name" class="duty-badge text-xs font-semibold px-2 py-0.5 truncate-1 max-w-full">{{ item.duty_name }}</span>
+            <span v-if="item.has_password" class="text-xs text-yellow-500">🔒</span>
+          </div>
+          <span class="text-xs font-mono shrink-0" style="color:var(--text-4)">#{{ item.listing_id }}</span>
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-2.5">
+          <span style="color:var(--text-3)">🌐 <span class="font-medium" style="color:var(--text-1)">{{ item.datacenter }}</span> / <span style="color:var(--text-2)">{{ item.world }}</span></span>
+          <span style="color:var(--text-3)">👤 <span class="text-indigo-600 font-bold">{{ item.creator_name }}</span>
+            <span v-if="(item.home_world || item.world)" class="text-amber-600">@{{ item.home_world || item.world }}</span>
+          </span>
+          <span v-if="item.min_item_level" style="color:var(--text-3)">⚔️ {{ item.min_item_level }}+</span>
+          <span style="color:var(--text-3)">👥 {{ getFilledCount(item) }}/{{ item.slots?.length || 0 }}</span>
+        </div>
+        <div v-if="item.description" class="p-2.5 mb-2.5 text-xs truncate-2 border" style="background:var(--desc-bg);border-color:var(--desc-border);color:var(--text-2)">
+          {{ item.description }}
+        </div>
+        <div class="flex flex-wrap justify-between items-center gap-2 pt-2 text-xs" style="border-top:1px solid var(--border-2)">
+          <span style="color:var(--text-3)">📅 <span class="font-mono" style="color:var(--text-2)">{{ formatTimeShort(item.first_seen_at) }}</span></span>
+          <span style="color:var(--text-3)">⏱ <span class="text-violet-600 font-bold">{{ formatDuration(item.duration_seconds) }}</span></span>
+        </div>
+      </div>
+    </TransitionGroup>
+    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div
+        v-for="item in result.items" :key="item.listing_id"
+        class="card card-item p-4"
+        :class="item.is_closed ? 'row-closed' : 'row-active'"
+      >
+        <div class="flex items-start justify-between gap-2 mb-2.5 flex-wrap">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="status-dot" :class="item.is_closed ? 'dot-closed' : 'dot-active'"></span>
+            <span class="text-xs font-semibold" :class="item.is_closed ? 'text-red-500' : 'text-emerald-600'">
+              {{ item.is_closed ? '已关闭' : '进行中' }}
+            </span>
+            <span v-if="item.category" class="cat-badge text-xs px-2 py-0.5">{{ item.category }}</span>
+            <span v-if="item.duty_name" class="duty-badge text-xs font-semibold px-2 py-0.5 truncate-1 max-w-full">{{ item.duty_name }}</span>
+            <span v-if="item.has_password" class="text-xs text-yellow-500">🔒</span>
+          </div>
+          <span class="text-xs font-mono shrink-0" style="color:var(--text-4)">#{{ item.listing_id }}</span>
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-2.5">
+          <span style="color:var(--text-3)">🌐 <span class="font-medium" style="color:var(--text-1)">{{ item.datacenter }}</span> / <span style="color:var(--text-2)">{{ item.world }}</span></span>
+          <span style="color:var(--text-3)">👤 <span class="text-indigo-600 font-bold">{{ item.creator_name }}</span>
+            <span v-if="(item.home_world || item.world)" class="text-amber-600">@{{ item.home_world || item.world }}</span>
+          </span>
+          <span v-if="item.min_item_level" style="color:var(--text-3)">⚔️ {{ item.min_item_level }}+</span>
+          <span style="color:var(--text-3)">👥 {{ getFilledCount(item) }}/{{ item.slots?.length || 0 }}</span>
+        </div>
+        <div v-if="item.description" class="p-2.5 mb-2.5 text-xs truncate-2 border" style="background:var(--desc-bg);border-color:var(--desc-border);color:var(--text-2)">
+          {{ item.description }}
+        </div>
+        <div class="flex flex-wrap justify-between items-center gap-2 pt-2 text-xs" style="border-top:1px solid var(--border-2)">
+          <span style="color:var(--text-3)">📅 <span class="font-mono" style="color:var(--text-2)">{{ formatTimeShort(item.first_seen_at) }}</span></span>
+          <span style="color:var(--text-3)">⏱ <span class="text-violet-600 font-bold">{{ formatDuration(item.duration_seconds) }}</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════ 分页 ═════════ -->
+    <div v-if="!loading && result.total_count > 0" class="flex justify-center pt-2 pb-8">
+      <el-pagination
+        v-model:current-page="filter.page"
+        v-model:page-size="filter.page_size"
+        :page-sizes="[20, 50, 100, 200, 500]"
+        :total="result.total_count"
+        layout="total, sizes, prev, pager, next, jumper"
+        background
+        @size-change="onPageChange"
+        @current-change="onPageChange"
+      />
+    </div>
+
+  </main>
+</div>
+
+<script>
+const { createApp, ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } = Vue;
+const API_BASE = (location.pathname.endsWith('/index.html')
+  ? location.pathname.replace('/index.html', '')
+  : location.pathname.replace(/\/$/, '')) || '';
+
+const App = {
+  setup() {
+    const loading = ref(false);
+    const stats = ref(null);
+    const prevStats = ref({ total_listings: -1, active_listings: -1 }); // 上一次的值，用于计算增量
+    const datacenters = ref([]);
+    const worlds = ref([]);
+    const categories = ref([]);
+    const duties = ref([]);
+    const viewMode = ref('single');
+    const isDark = ref(false);
+    const includeTW = ref(false); // 默认不显示繁中服
+
+    // 数字动画相关
+    const totalBumpKey = ref(0);
+    const activeBumpKey = ref(0);
+    const totalBumpTrigger = ref(false);
+    const activeBumpTrigger = ref(false);
+    const totalDeltas = ref([]); // { id, value }
+    const activeDeltas = ref([]);
+    let _deltaIdSeed = 0;
+    let statsTimer = null; // 定时刷新定时器
+
+    function triggerTotalBump() {
+      totalBumpKey.value++;
+      totalBumpTrigger.value = true;
+      setTimeout(() => { totalBumpTrigger.value = false; }, 500);
+    }
+    function triggerActiveBump() {
+      activeBumpKey.value++;
+      activeBumpTrigger.value = true;
+      setTimeout(() => { activeBumpTrigger.value = false; }, 500);
+    }
+    function pushTotalDelta(val) {
+      const id = ++_deltaIdSeed;
+      totalDeltas.value.push({ id, value: val });
+      setTimeout(() => {
+        totalDeltas.value = totalDeltas.value.filter(d => d.id !== id);
+      }, 1200);
+    }
+    function pushActiveDelta(val) {
+      const id = ++_deltaIdSeed;
+      activeDeltas.value.push({ id, value: val });
+      setTimeout(() => {
+        activeDeltas.value = activeDeltas.value.filter(d => d.id !== id);
+      }, 1200);
+    }
+
+    const filter = reactive({
+      creator: '', datacenter: '', world: '',
+      category: '', duty_name: '',
+      keyword: '', is_closed: null, date_range: null,
+      page: 1, page_size: 50,
+    });
+
+    const result = reactive({ items: [], total_count: -1, total_pages: 0 });
+
+    // ── 主题切换 ──
+    function toggleTheme() {
+      isDark.value = !isDark.value;
+      document.documentElement.classList.toggle('dark', isDark.value);
+      localStorage.setItem('ffxiv-theme', isDark.value ? 'dark' : 'light');
+    }
+    // 读取保存的主题
+    const saved = localStorage.getItem('ffxiv-theme');
+    if (saved === 'dark') { isDark.value = true; document.documentElement.classList.add('dark'); }
+
+    // ── 繁中服切换：默认 OFF（exclude_tw=True），ON 时 includeTW=true（exclude_tw=False）──
+    function toggleIncludeTW() {
+      includeTW.value = !includeTW.value;
+      localStorage.setItem('ffxiv-include-tw', includeTW.value ? '1' : '0');
+      // 切换繁中服时重置 prevStats，避免把"显示更多数据"误判为新增招募
+      prevStats.value = { total_listings: -1, active_listings: -1 };
+      // 切换繁中服显示时：1. 重新加载所有筛选下拉 2. 重新搜索
+      filter.datacenter = ''; filter.world = '';
+      reloadAll().then(() => onSearch());
+    }
+    const savedTW = localStorage.getItem('ffxiv-include-tw');
+    if (savedTW === '1') { includeTW.value = true; }
+
+    const excludeTWQuery = () => includeTW.value ? 'false' : 'true';
+    async function reloadAll() {
+      return Promise.all([loadStats(), loadDatacenters(), loadWorlds(), loadCategories(), loadDuties()]);
+    }
+
+    // ── 计算属性 ──
+    const filteredDuties = computed(() => {
+      if (!filter.category) return duties.value;
+      return duties.value.filter(d => (d.category || '其他招募') === filter.category);
+    });
+
+    const activeFilterCount = computed(() => {
+      let n = 0;
+      if (filter.creator) n++;
+      if (filter.datacenter) n++;
+      if (filter.world) n++;
+      if (filter.category) n++;
+      if (filter.duty_name) n++;
+      if (filter.keyword) n++;
+      if (filter.is_closed !== null) n++;
+      if (filter.date_range) n++;
+      return n;
+    });
+
+    // ── helpers ──
+    const getFilledCount = (item) => !item.slots ? 0 : item.slots.filter(s => s.status === 'filled').length;
+
+    const formatTimeShort = (iso) => {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      if (isNaN(d)) return iso;
+      const pad = n => String(n).padStart(2, '0');
+      return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    const formatDuration = (secs) => {
+      if (secs == null || secs < 0) return '-';
+      if (secs < 60) return secs + '秒';
+      if (secs < 3600) return Math.floor(secs/60) + '分';
+      const h = Math.floor(secs/3600);
+      const m = Math.floor((secs%3600)/60);
+      if (h >= 24) return Math.floor(h/24) + '天' + (h%24 ? (h%24) + '时' : '');
+      return h + '时' + (m ? m + '分' : '');
+    };
+
+    // ── API ──
+    async function searchHistory() {
+      loading.value = true;
+      try {
+        const qs = new URLSearchParams();
+        if (filter.creator) qs.set('creator', filter.creator);
+        if (filter.datacenter) qs.set('datacenter', filter.datacenter);
+        if (filter.world) qs.set('world', filter.world);
+        if (filter.duty_name) qs.set('duty_name', filter.duty_name);
+        if (filter.category) qs.set('category', filter.category);
+        if (filter.keyword) qs.set('keyword', filter.keyword);
+        if (filter.is_closed != null) qs.set('is_closed', String(filter.is_closed));
+        if (filter.date_range && filter.date_range.length === 2) {
+          qs.set('start_date', filter.date_range[0]);
+          qs.set('end_date', filter.date_range[1]);
+        }
+        qs.set('page', String(filter.page));
+        qs.set('page_size', String(filter.page_size));
+        qs.set('exclude_tw', excludeTWQuery());
+
+        const resp = await fetch(`${API_BASE}/api/v1/history?${qs.toString()}`);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        result.items = data.items || [];
+        result.total_count = data.total_count ?? 0;
+        result.total_pages = data.total_pages ?? 0;
+      } catch (e) {
+        ElementPlus.ElMessage.error('搜索失败: ' + e.message);
+        result.items = []; result.total_count = 0; result.total_pages = 0;
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    // ── 搜索：直接从 API 加载，TransitionGroup 自动处理动画 ──
+    async function onSearch() {
+      filter.page = 1;
+      await searchHistory();
+    }
+
+    async function loadStats() {
+      try {
+        const r = await fetch(`${API_BASE}/api/v1/stats?exclude_tw=${excludeTWQuery()}`);
+        if (r.ok) {
+          const newStats = await r.json();
+          const isFirstLoad = prevStats.value.total_listings < 0;
+          const prevTotal = prevStats.value.total_listings;
+          const prevActive = prevStats.value.active_listings;
+
+          stats.value = newStats;
+
+          // 首次加载只保存 prev，不触发动画
+          if (!isFirstLoad) {
+            const totalDelta = newStats.total_listings - prevTotal;
+            const activeDelta = newStats.active_listings - prevActive;
+
+            if (totalDelta > 0) {
+              await nextTick();
+              pushTotalDelta(totalDelta);
+              triggerTotalBump();
+            } else if (totalDelta < 0) {
+              // 数字变小（例如繁中服切换时），也触发跳动
+              await nextTick();
+              triggerTotalBump();
+            }
+
+            if (activeDelta > 0) {
+              await nextTick();
+              pushActiveDelta(activeDelta);
+              triggerActiveBump();
+            } else if (activeDelta < 0) {
+              await nextTick();
+              triggerActiveBump();
+            }
+          }
+
+          prevStats.value = {
+            total_listings: newStats.total_listings,
+            active_listings: newStats.active_listings,
+          };
+        }
+      } catch {}
+    }
+
+    // 启动/停止定时刷新（每 30 秒刷新一次 stats，和后端 COUNT 缓存 TTL 对齐）
+    function startStatsPolling() {
+      stopStatsPolling();
+      statsTimer = setInterval(() => {
+        loadStats();
+      }, 30000);
+    }
+    function stopStatsPolling() {
+      if (statsTimer) { clearInterval(statsTimer); statsTimer = null; }
+    }
+    async function loadDatacenters() { try { const r = await fetch(`${API_BASE}/api/v1/datacenters?exclude_tw=${excludeTWQuery()}`); if (r.ok) datacenters.value = await r.json(); } catch {} }
+    async function loadWorlds(dc = '') {
+      try {
+        const qs = new URLSearchParams();
+        if (dc) qs.set('datacenter', dc);
+        qs.set('exclude_tw', excludeTWQuery());
+        const r = await fetch(`${API_BASE}/api/v1/worlds?${qs.toString()}`);
+        if (r.ok) worlds.value = await r.json();
+      } catch {}
+    }
+    async function loadCategories() {
+      try { const r = await fetch(`${API_BASE}/api/v1/categories?exclude_tw=${excludeTWQuery()}`); if (r.ok) categories.value = await r.json(); } catch {}
+    }
+    async function loadDuties(cat = '') {
+      try {
+        const qs = new URLSearchParams();
+        qs.set('limit', '800');
+        if (cat) qs.set('category', cat);
+        qs.set('exclude_tw', excludeTWQuery());
+        const r = await fetch(`${API_BASE}/api/v1/duties?${qs.toString()}`);
+        if (r.ok) duties.value = await r.json();
+      } catch {}
+    }
+
+    // ── 筛选 toggle ──
+    function toggleDatacenter(dc) {
+      filter.datacenter = (filter.datacenter === dc) ? '' : dc;
+      filter.world = '';
+      loadWorlds(filter.datacenter || '');
+      onSearch();
+    }
+    function clearDatacenter() { filter.datacenter = ''; filter.world = ''; loadWorlds(''); onSearch(); }
+    function toggleWorld(w) { filter.world = (filter.world === w) ? '' : w; onSearch(); }
+    function toggleStatus(val) { filter.is_closed = (filter.is_closed === val) ? null : val; onSearch(); }
+    function onCategorySelect(val) {
+      filter.category = val || '';
+      filter.duty_name = '';
+      loadDuties(filter.category || '');
+      onSearch();
+    }
+    function onPageChange() { searchHistory(); }
+    function onReset() {
+      Object.assign(filter, {
+        creator: '', datacenter: '', world: '', category: '', duty_name: '',
+        keyword: '', is_closed: null, date_range: null, page: 1, page_size: 50,
+      });
+      // 重置时只发搜索请求，下拉数据不重新加载（它们内容不变）
+      searchHistory();
+    }
+
+    onMounted(() => {
+      // 首屏优化：优先加载搜索结果（用户最想看的），下拉数据延迟 500ms 后加载
+      searchHistory().then(() => {
+        setTimeout(() => {
+          loadStats();
+          loadDatacenters();
+          loadWorlds();
+          loadCategories();
+          loadDuties();
+          // 首屏数据加载完毕后启动定时轮询（每30秒刷新统计）
+          startStatsPolling();
+        }, 500);
+      });
+    });
+
+    onUnmounted(() => {
+      stopStatsPolling();
+    });
+
+    return {
+      loading, stats, datacenters, worlds, categories, duties,
+      viewMode, isDark, includeTW, filter, result,
+      filteredDuties, activeFilterCount,
+      // 动画相关变量
+      totalBumpKey, activeBumpKey, totalBumpTrigger, activeBumpTrigger,
+      totalDeltas, activeDeltas,
+      toggleTheme, toggleIncludeTW, onSearch, onPageChange, onReset,
+      toggleDatacenter, clearDatacenter, toggleWorld, toggleStatus, onCategorySelect,
+      getFilledCount, formatTimeShort, formatDuration,
+    };
+  }
+};
+
+const app = createApp(App);
+app.use(ElementPlus);
+for (const [key, comp] of Object.entries(ElementPlusIconsVue)) app.component(key, comp);
+app.mount('#app');
+</script>
+</body>
+</html>
