@@ -449,7 +449,8 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
                     style="width: 180px" size="small" />
           <el-date-picker v-model="filter.date_range" type="daterange" range-separator="~"
             start-placeholder="开始" end-placeholder="结束" size="small"
-            value-format="YYYY-MM-DD" style="width: 260px" />
+            value-format="YYYY-MM-DD" style="width: 260px"
+            @change="onSearch" clearable />
         </div>
       </div>
 
@@ -770,7 +771,8 @@ const App = {
       if (filter.duty_name) n++;
       if (filter.keyword) n++;
       if (filter.is_closed !== null) n++;
-      if (filter.date_range) n++;
+      if (filter.date_range && filter.date_range.length === 2
+          && filter.date_range[0] && filter.date_range[1]) n++;
       return n;
     });
 

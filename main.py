@@ -436,12 +436,13 @@ async def search_history(
             params.append(cat)
 
         if start_date and start_date.strip():
+            # first_seen_at 存 ISO8601 格式（YYYY-MM-DDTHH:MM:SS.ffffff），这里用 T00:00:00 严格对齐
             conditions.append(f"first_seen_at >= {P}")
-            params.append(start_date.strip())
+            params.append(start_date.strip() + "T00:00:00")
 
         if end_date and end_date.strip():
             conditions.append(f"first_seen_at <= {P}")
-            params.append(end_date.strip() + " 23:59:59")
+            params.append(end_date.strip() + "T23:59:59.999999")
 
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
