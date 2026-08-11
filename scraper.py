@@ -214,17 +214,76 @@ def upsert_listing(conn: sqlite3.Connection, item: dict) -> str:
 
 
 def close_stale_listings(conn: sqlite3.Connection, active_ids: set):
-    """将不在当前列表中的活跃招募标记为已关闭"""
+    """
+    将不在当前列表中的活跃招募标记为已关闭
+    分批处理（每批 500 个），避免 SQLite NOT IN 参数上限（默认 999 个）导致更新失败
+    """
     cur = conn.cursor()
-    if active_ids:
-        placeholders = ",".join("?" * len(active_ids))
-        cur.execute(f"""
-            UPDATE pf_history SET is_closed = 1
-            WHERE is_closed = 0 AND listing_id NOT IN ({placeholders})
-        """, list(active_ids))
-    else:
+    id_list = list(active_ids)
+
+    if not id_list:
+        # 本轮完全没抓到数据 -> 所有活跃的全关
         cur.execute("UPDATE pf_history SET is_closed = 1 WHERE is_closed = 0")
+        conn.commit()
+        return
+
+    BATCH_SIZE = 500
+    # 为避免分批 NOT IN 时上一批已经关闭的 listing 被下一批"复活"
+    # 做法：先把所有活跃 listing_id 写入临时表，再用 NOT EXISTS 关联更新
+    tmp_table = "_tmp_active_ids_" + str(int(time.time() * 1000))
+    cur.execute(f"CREATE TEMP TABLE {tmp_table} (listing_id TEXT PRIMARY KEY)")
+    # 分批 INSERT 到临时表（也避免 INSERT 参数上限）
+    for i in range(0, len(id_list), BATCH_SIZE):
+        batch = id_list[i:i + BATCH_SIZE]
+        placeholders = ",".join("?" * len(batch))
+        cur.execute(
+            f"INSERT OR IGNORE INTO {tmp_table} (listing_id) VALUES {','.join(['(?)' for _ in batch])}",
+            batch,
+        )
+    cur.execute(f"""
+        UPDATE pf_history SET is_closed = 1
+        WHERE is_closed = 0
+          AND NOT EXISTS (
+              SELECT 1 FROM {tmp_table} t
+              WHERE t.listing_id = pf_history.listing_id
+          )
+    """)
+    cur.execute(f"DROP TABLE IF EXISTS {tmp_table}")
     conn.commit()
+
+
+def enforce_one_active_per_creator(conn: sqlite3.Connection):
+    """
+    业务规则兜底：同一个角色（creator_name + home_world）只能有 1 个招募进行中。
+    每个角色只保留 last_seen_at 最新的那一条为 is_closed=0，
+    其他所有同角色的 is_closed=0 招募全部强制关闭。
+    """
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE pf_history
+        SET is_closed = 1
+        WHERE is_closed = 0
+          AND rowid NOT IN (
+              -- 每个角色（creator_name + home_world）只留 last_seen_at 最大的那一条
+              SELECT keeper_rowid FROM (
+                  SELECT MAX(rowid) AS keeper_rowid
+                  FROM pf_history
+                  WHERE is_closed = 0
+                  GROUP BY
+                      creator_name,
+                      home_world,
+                      -- last_seen_at 最新的那条作为 keeper
+                      (SELECT MAX(last_seen_at)
+                       FROM pf_history h2
+                       WHERE h2.is_closed = 0
+                         AND h2.creator_name = pf_history.creator_name
+                         AND h2.home_world  = pf_history.home_world)
+              )
+          )
+    """)
+    updated = cur.rowcount
+    conn.commit()
+    return updated
 
 
 # ─────────────── API 调用 ───────────────
@@ -410,11 +469,13 @@ def main():
     print()
     
     conn = get_db()
-    seen_ids = set()
     
     while True:
         now = datetime.now().strftime("%H:%M:%S")
         print(f"\n\033[96m[{now}] ═══ 开始新一轮爬取 ═══\033[0m")
+        
+        # 每轮重置：只保留「本轮真正获取到的」活跃 ID
+        seen_ids = set()
         
         client = httpx.Client(timeout=30)
         try:
@@ -440,9 +501,10 @@ def main():
         updated_items = []
         for raw in raw_items:
             item = convert_api_item(raw)
+            # 先记录本轮看到的活跃 ID（即使后续 upsert 失败，也认为它在上游是活跃的）
+            seen_ids.add(item["listing_id"])
             try:
                 status = upsert_listing(conn, item)
-                seen_ids.add(item["listing_id"])
                 if status == "new":
                     new_items.append(item)
                 elif status == "updated":
@@ -450,8 +512,14 @@ def main():
             except Exception as e:
                 print(f"    \033[91m写入失败: {item.get('listing_id')} - {e}\033[0m")
         
-        # 关闭不在当前列表中的招募
+        # ① 关闭不在当前列表中的招募（本轮没看到的 = 已经给上游下架了）
         close_stale_listings(conn, seen_ids)
+        
+        # ② 业务规则兜底：同一个角色（creator_name + home_world）只能有 1招募进行中
+        #    防止上游 API 短暂延迟/重复数据导致的同角色多招募同时在线
+        closed_extra = enforce_one_active_per_creator(conn)
+        if closed_extra > 0:
+            print(f"  \033[93m[规则兜底] 强制关闭 {closed_extra} 条同角色重复招募\033[0m")
         
         # 统计
         total_active = conn.execute("SELECT COUNT(*) FROM pf_history WHERE is_closed = 0").fetchone()[0]
