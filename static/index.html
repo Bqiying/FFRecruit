@@ -507,19 +507,19 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
 
     <!-- ═════════ 单行模式（数据量大时禁用 TransitionGroup 避免卡顿） ═════════ -->
     <div v-else-if="viewMode === 'single'" class="card overflow-hidden scrollbar-thin" style="overflow-x:auto;position:relative">
-      <div class="min-w-[1150px]">
+      <div class="min-w-[1230px]">
         <div class="table-header grid items-center gap-2 px-4 py-3 text-xs font-semibold"
-             style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px;color:var(--text-2)">
+             style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px 52px;color:var(--text-2)">
           <span></span><span>状态</span><span>大区</span><span>发布服</span>
           <span>队长 @ 服务器</span><span>人数</span><span>任务类型</span>
-          <span>任务 / 副本 · 招募说明</span><span>创建时间</span><span>存活</span>
+          <span>任务 / 副本 · 招募说明</span><span>创建时间</span><span>存活</span><span class="text-center">复制</span>
         </div>
         <TransitionGroup v-if="result.items.length <= 100" name="list" tag="div">
           <div
             v-for="item in result.items" :key="item.listing_id"
             class="data-row grid items-center gap-2 px-4 py-2.5 text-sm"
             :class="item.is_closed ? 'row-closed' : 'row-active'"
-            style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px;"
+            style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px 52px;"
           >
             <span class="status-dot" :class="item.is_closed ? 'dot-closed' : 'dot-active'"></span>
             <span class="text-xs font-semibold" :class="item.is_closed ? 'text-red-500' : 'text-emerald-600'">
@@ -541,6 +541,11 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
             </div>
             <span class="text-xs font-mono" style="color:var(--text-3)">{{ formatTimeShort(item.first_seen_at) }}</span>
             <span class="text-violet-600 text-xs font-bold">{{ formatDuration(item.duration_seconds) }}</span>
+            <el-button
+              size="small" text type="primary" class="justify-center shrink-0 w-[40px] h-[28px]"
+              @click.stop="copyRecruit(item)"
+              title="复制该招募完整信息"
+            >📋 复制</el-button>
           </div>
         </TransitionGroup>
         <!-- 数据量大时直接渲染，无动画 -->
@@ -549,7 +554,7 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
             v-for="item in result.items" :key="item.listing_id"
             class="data-row grid items-center gap-2 px-4 py-2.5 text-sm"
             :class="item.is_closed ? 'row-closed' : 'row-active'"
-            style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px;"
+            style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px 52px;"
           >
             <span class="status-dot" :class="item.is_closed ? 'dot-closed' : 'dot-active'"></span>
             <span class="text-xs font-semibold" :class="item.is_closed ? 'text-red-500' : 'text-emerald-600'">
@@ -571,6 +576,11 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
             </div>
             <span class="text-xs font-mono" style="color:var(--text-3)">{{ formatTimeShort(item.first_seen_at) }}</span>
             <span class="text-violet-600 text-xs font-bold">{{ formatDuration(item.duration_seconds) }}</span>
+            <el-button
+              size="small" text type="primary" class="justify-center shrink-0 w-[40px] h-[28px]"
+              @click.stop="copyRecruit(item)"
+              title="复制该招募完整信息"
+            >📋 复制</el-button>
           </div>
         </div>
       </div>
@@ -609,6 +619,11 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
         <div class="flex flex-wrap justify-between items-center gap-2 pt-2 text-xs" style="border-top:1px solid var(--border-2)">
           <span style="color:var(--text-3)">📅 <span class="font-mono" style="color:var(--text-2)">{{ formatTimeShort(item.first_seen_at) }}</span></span>
           <span style="color:var(--text-3)">⏱ <span class="text-violet-600 font-bold">{{ formatDuration(item.duration_seconds) }}</span></span>
+          <el-button
+            size="small" text type="primary"
+            @click.stop="copyRecruit(item)"
+            title="复制该招募完整信息"
+          >📋 复制招募</el-button>
         </div>
       </div>
     </TransitionGroup>
@@ -644,6 +659,11 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
         <div class="flex flex-wrap justify-between items-center gap-2 pt-2 text-xs" style="border-top:1px solid var(--border-2)">
           <span style="color:var(--text-3)">📅 <span class="font-mono" style="color:var(--text-2)">{{ formatTimeShort(item.first_seen_at) }}</span></span>
           <span style="color:var(--text-3)">⏱ <span class="text-violet-600 font-bold">{{ formatDuration(item.duration_seconds) }}</span></span>
+          <el-button
+            size="small" text type="primary"
+            @click.stop="copyRecruit(item)"
+            title="复制该招募完整信息"
+          >📋 复制招募</el-button>
         </div>
       </div>
     </div>
@@ -795,6 +815,64 @@ const App = {
       if (h >= 24) return Math.floor(h/24) + '天' + (h%24 ? (h%24) + '时' : '');
       return h + '时' + (m ? m + '分' : '');
     };
+
+    // 生成完整的招募信息字符串
+    const buildRecruitText = (item) => {
+      const lines = [];
+      lines.push(`状态：${item.is_closed ? '已关闭' : '进行中'}`);
+      lines.push(`大区：${item.datacenter || '-'}`);
+      if (item.world) lines.push(`服务器：${item.world}`);
+      const homeWorld = item.home_world || item.world;
+      lines.push(`队长：${item.creator_name || '-'}${homeWorld ? ' @ ' + homeWorld : ''}`);
+      if (item.category) lines.push(`任务类型：${item.category}`);
+      if (item.duty_name) lines.push(`副本：${item.duty_name}`);
+      lines.push(`人数：${getFilledCount(item)}/${(item.slots && item.slots.length) || 0}`);
+      if (item.min_item_level) lines.push(`最低装等：${item.min_item_level}+`);
+      if (item.has_password) lines.push(`密码：有`);
+      lines.push(`描述：${item.description || '（无描述）'}`);
+      lines.push(`招募开启时间：${formatTimeFull(item.first_seen_at)}`);
+      if (item.duration_seconds != null) {
+        lines.push(`存活时长：${formatDuration(item.duration_seconds)}`);
+      }
+      lines.push(`招募 ID：#${item.listing_id}`);
+      return lines.join('\n');
+    };
+
+    const formatTimeFull = (iso) => {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      if (isNaN(d)) return iso;
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+
+    // 复制招募信息到剪贴板
+    async function copyRecruit(item) {
+      const text = buildRecruitText(item);
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          // HTTP 或旧浏览器兜底：用 textarea + execCommand
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        ElementPlus.ElMessage({
+          message: `已复制 ${item.creator_name || '招募'} 的信息`,
+          type: 'success',
+          duration: 1500,
+          showClose: true,
+        });
+      } catch (e) {
+        ElementPlus.ElMessage.error('复制失败: ' + e.message);
+      }
+    }
 
     // ── API ──
     async function searchHistory() {
@@ -968,7 +1046,7 @@ const App = {
       totalDeltas, activeDeltas,
       toggleTheme, toggleIncludeTW, onSearch, onPageChange, onReset,
       toggleDatacenter, clearDatacenter, toggleWorld, toggleStatus, onCategorySelect,
-      getFilledCount, formatTimeShort, formatDuration,
+      getFilledCount, formatTimeShort, formatDuration, copyRecruit,
     };
   }
 };
