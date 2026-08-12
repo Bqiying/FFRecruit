@@ -205,19 +205,107 @@ html, body {
 }
 
 /* el-select 下拉面板 */
-.el-select-dropdown { border-radius: 0 !important; }
+.el-select-dropdown {
+  border-radius: 0 !important;
+  padding: 4px 0 !important;
+}
+.el-select-dropdown__wrap { margin: 0 !important; }
+.el-select-dropdown__item {
+  height: 34px !important;
+  line-height: 34px !important;
+  color: var(--text-1) !important;
+  font-size: 13px !important;
+}
+/* 浅色模式：hover 使用紫-靛渐变，但背景加白底，保证对比度 */
+.el-select-dropdown__item.hover,
+.el-select-dropdown__item:hover {
+  background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12)) !important;
+  color: #4338ca !important;
+  font-weight: 600;
+}
+.el-select-dropdown__item.selected {
+  background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.18)) !important;
+  color: #4338ca !important;
+  font-weight: 700;
+}
+/* 深色模式：下拉整体和 hover 样式（修正原本太亮看不清字的问题） */
 html.dark .el-select-dropdown {
-  background: #1e1b4b !important;
+  background: #15133a !important;
   border: 1px solid rgba(255,255,255,0.1) !important;
 }
 html.dark .el-select-dropdown__item { color: #cbd5e1 !important; }
-html.dark .el-select-dropdown__item.hover { background: rgba(99,102,241,0.15) !important; }
-html.dark .el-select-dropdown__item.selected { color: #a5b4fc !important; }
+html.dark .el-select-dropdown__item.hover,
+html.dark .el-select-dropdown__item:hover {
+  background: linear-gradient(135deg, rgba(99,102,241,0.28), rgba(139,92,246,0.28)) !important;
+  color: #c7d2fe !important;
+  font-weight: 600;
+}
+html.dark .el-select-dropdown__item.selected {
+  background: linear-gradient(135deg, rgba(99,102,241,0.38), rgba(139,92,246,0.38)) !important;
+  color: #e0e7ff !important;
+  font-weight: 700;
+}
 html.dark .el-date-picker, html.dark .el-date-range-picker {
-  background: #1e1b4b !important; border: 1px solid rgba(255,255,255,0.1) !important;
+  background: #15133a !important; border: 1px solid rgba(255,255,255,0.1) !important;
 }
 html.dark .el-date-table th { color: #94a3b8 !important; }
 html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !important; }
+
+/* ── 复制按钮：统一配色，背景完全覆盖文字 ── */
+.btn-copy {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px;
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 0 !important;
+  border: 1px solid var(--btn-copy-border) !important;
+  background: var(--btn-copy-bg) !important;
+  color: var(--btn-copy-text) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  white-space: nowrap;
+}
+.btn-copy:hover {
+  background: var(--btn-copy-bg-hover) !important;
+  border-color: var(--btn-copy-border-hover) !important;
+  color: var(--btn-copy-text-hover) !important;
+  transform: translateY(-1px);
+}
+.btn-copy:active { transform: translateY(0); }
+/* 浅色模式复制按钮配色 */
+:root {
+  --btn-copy-bg: #ffffff;
+  --btn-copy-border: #c7d2fe;
+  --btn-copy-text: #4338ca;
+  --btn-copy-bg-hover: linear-gradient(135deg, #eef2ff, #f5f3ff);
+  --btn-copy-border-hover: #818cf8;
+  --btn-copy-text-hover: #4338ca;
+}
+/* 深色模式复制按钮配色 */
+html.dark {
+  --btn-copy-bg: rgba(99,102,241,0.14);
+  --btn-copy-border: rgba(129,140,248,0.35);
+  --btn-copy-text: #c7d2fe;
+  --btn-copy-bg-hover: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3));
+  --btn-copy-border-hover: rgba(165,180,252,0.6);
+  --btn-copy-text-hover: #e0e7ff;
+}
+/* 单行模式：复制列固定宽 68px，按钮宽度略小 */
+.btn-copy-row {
+  width: 56px !important;
+  height: 28px !important;
+  padding: 0 6px !important;
+}
+/* 双列模式：复制按钮直接放底部信息栏，略宽 */
+.btn-copy-card {
+  height: 26px !important;
+  padding: 0 10px !important;
+}
 
 /* 标签 */
 .duty-badge { background: var(--duty-bg); border: 1px solid var(--duty-border); color: var(--duty-text); }
@@ -325,6 +413,51 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
 }
 .theme-toggle:hover { border-color: #a78bfa; transform: rotate(15deg); }
 
+/* ═════════ 手机端适配（≤768px）：用双列卡片模板 + 单列纵向排，防止单行模式横向溢出 ═════════ */
+@media (max-width: 768px) {
+  /* 全局内边距缩小，避免两侧留白浪费空间 */
+  main { padding-left: 12px !important; padding-right: 12px !important; }
+
+  /* header 右上按钮列缩小一些，不挤 */
+  .theme-toggle { width: 34px; height: 34px; font-size: 16px; }
+
+  /* 筛选大区/服务器的 chip 行自动换行，不横向溢出 */
+  .filter-chip-row,
+  .filter-section-row,
+  .filter-datacenter-row,
+  .filter-world-row {
+    flex-wrap: wrap !important;
+  }
+
+  /* 队长搜索框 & 日期范围在手机各占满一行，不挤到一起 */
+  .search-creator-row {
+    flex-wrap: wrap;
+  }
+  .search-creator-row .el-input,
+  .search-creator-row .el-date-editor {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 卡片内容区让大区/人数字段充分换行，不需要太挤的紧凑 */
+  .card-item .duty-badge,
+  .card-item .cat-badge { max-width: 100%; }
+
+  /* 筛选工具栏：重置/搜索按钮区两端对齐折行 */
+  .toolbar-footer { flex-wrap: wrap; }
+
+  /* 分页器按钮缩小，page-size 下拉别太长 */
+  .el-pagination {
+    --el-pagination-button-width: 32px;
+  }
+  .el-pagination .el-pagination__total,
+  .el-pagination .el-pagination__jump { font-size: 12px; }
+  .el-pagination .el-select { width: 96px !important; }
+
+  /* 关于对话框在手机占满宽度，上边距减小 */
+  .about-dialog { width: 96vw !important; }
+}
+
 /* 骨架屏 */
 .skeleton-row {
   height: 44px; background: var(--skeleton);
@@ -368,12 +501,93 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
                 style="padding:0 10px;font-size:13px;width:auto;gap:4px">
           <span>🟡</span><span style="font-weight:600">{{ includeTW ? '繁中显示中' : '繁中已隐藏' }}</span>
         </button>
+        <button class="theme-toggle" @click="toggleAbout" title="关于本站（数据说明 / 开源 / 免责）"
+                style="padding:0 10px;font-size:13px;width:auto">
+          ℹ️ 关于
+        </button>
         <button class="theme-toggle" @click="toggleTheme" :title="isDark ? '切换浅色' : '切换深色'">
           {{ isDark ? '☀️' : '🌙' }}
         </button>
       </div>
     </div>
   </header>
+
+  <!-- ═════════ 关于弹窗 ═════════ -->
+  <el-dialog
+    v-model="aboutOpen"
+    title="关于 本站"
+    width="min(720px, 92vw)"
+    top="8vh"
+    :modal="true"
+    class="about-dialog"
+  >
+    <div class="space-y-5 text-sm leading-7" style="color:var(--text-2)">
+
+      <!-- 简介 -->
+      <section>
+        <p>本站是一个非官方的《最终幻想 14（FFXIV）》国服历史招募板归档与搜索工具，用于检索过去的野队招募信息。</p>
+      </section>
+
+      <!-- AI 编程声明 -->
+      <section class="p-4 border"
+               style="background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(139,92,246,0.06));border-color:var(--border-1)">
+        <h3 class="text-base font-bold mb-2" style="color:var(--text-1)">🤖 AI 辅助编程声明</h3>
+        <p>本项目的代码结构、业务逻辑实现、前端 UI 样式、部署脚本等，<b>大量使用了 AI 编程辅助（大语言模型自动生成 + 人工修改验证）</b>来完成。开发者对功能、数据流、筛选规则、数据库结构做了业务级别的设计与验收，但代码中可能残留 AI 生成的冗余或存在未覆盖的边界情况。</p>
+        <p class="mt-2">如发现 Bug 或功能问题，欢迎在 GitHub 仓库中提交 Issue。</p>
+      </section>
+
+      <!-- 上游开源项目 & 数据源 -->
+      <section>
+        <h3 class="text-base font-bold mb-2" style="color:var(--text-1)">🔗 上游数据源 & 开源地址</h3>
+        <ul class="list-disc pl-6 space-y-1.5">
+          <li>招募数据来源（实时 API）：
+            <a href="https://xivpf.littlenightmare.top/api/listings" target="_blank" rel="noopener noreferrer"
+               style="color:#6366f1;text-decoration:underline">xivpf.littlenightmare.top/api/listings</a>
+            （感谢上游作者提供公开 API）
+          </li>
+          <li>参考 UI/功能组织：
+            <a href="https://xivpf.ff14.xin/" target="_blank" rel="noopener noreferrer"
+               style="color:#6366f1;text-decoration:underline">xivpf.ff14.xin</a>
+          </li>
+          <li>本项目源码（欢迎 Star / Issue / PR）：
+            <a href="https://github.com/Bqiying/FFRecruit" target="_blank" rel="noopener noreferrer"
+               style="color:#6366f1;text-decoration:underline">github.com/Bqiying/FFRecruit</a>
+          </li>
+        </ul>
+      </section>
+
+      <!-- 数据说明 -->
+      <section>
+        <h3 class="text-base font-bold mb-2" style="color:var(--text-1)">📅 数据采集说明</h3>
+        <ul class="list-disc pl-6 space-y-1.5">
+          <li><b>数据起始时间</b>：<span style="color:var(--text-1);font-weight:600">2026 年 8 月 14 日</span>。此日期之前的招募历史本站未留存，无法查询。</li>
+          <li><b>采集周期</b>：爬虫默认每 60 秒从上游 API 拉取一次全量招募。</li>
+          <li style="color:var(--text-1)">
+            <b>可能漏记的情况</b>：招募在游戏内<b>存活时间短于一轮采集周期（约 1～2 分钟）</b>时，
+            有一定概率不会被本站记录到，属于正常现象，无法通过重新抓取恢复。
+          </li>
+          <li><b>招募关闭判定</b>：同一轮拉取中未再出现的招募将被自动标记为「已关闭」；同时按「同一个角色同一时间只能有 1 个招募进行中」做了兜底。</li>
+        </ul>
+      </section>
+
+      <!-- 免责声明 -->
+      <section class="p-4 border"
+               style="background:linear-gradient(135deg,rgba(239,68,68,0.06),rgba(249,115,22,0.06));border-color:var(--border-1)">
+        <h3 class="text-base font-bold mb-2" style="color:var(--text-1)">⚠️ 免责声明</h3>
+        <ol class="list-decimal pl-6 space-y-1.5">
+          <li>本站仅做招募历史数据的归档与检索，<b>不持有任何与游戏官方、上游 API 提供方的关联</b>，所有招募的真实性与内容准确性由游戏内招募发起人和上游 API 提供方负责。</li>
+          <li>本站所有内容<b>仅供学习交流、野队复盘与历史查询使用</b>，严禁用于任何形式的商业用途、转售，或违反《最终幻想 14》最终用户协议的行为。</li>
+          <li>因使用本站信息（例如根据招募描述进队、参与交易等）导致的任何直接或间接损失，<b>本站开发者不承担任何责任</b>。</li>
+          <li>AI 辅助生成的代码与内容已尽最大努力人工核验，但不保证功能 100% 无缺陷；因程序 Bug 导致的数据偏差或服务中断，本站开发者不承担连带责任。</li>
+        </ol>
+      </section>
+
+    </div>
+
+    <template #footer>
+      <div class="text-xs" style="color:var(--text-3)">© FFRecruit · 使用请遵守游戏用户协议</div>
+    </template>
+  </el-dialog>
 
   <main class="max-w-[1500px] mx-auto px-4 sm:px-6 py-4 space-y-3">
 
@@ -443,7 +657,7 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
         </div>
 
         <!-- 文本搜索行 -->
-        <div class="flex items-center gap-2 flex-wrap pt-1">
+        <div class="search-creator-row flex items-center gap-2 flex-wrap pt-1">
           <span class="text-xs font-semibold w-16 shrink-0" style="color:var(--text-2)">🔍 队长</span>
           <el-input v-model="filter.creator" placeholder="队长名" clearable @keyup.enter="onSearch"
                     style="width: 180px" size="small" />
@@ -455,7 +669,7 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
       </div>
 
       <!-- 底部操作栏 -->
-      <div class="flex flex-wrap items-center justify-between gap-2 mt-3.5 pt-3" style="border-top:1px solid var(--border-2)">
+      <div class="toolbar-footer flex flex-wrap items-center justify-between gap-2 mt-3.5 pt-3" style="border-top:1px solid var(--border-2)">
         <div class="flex items-center gap-2">
           <el-button-group>
             <el-button size="small" :type="viewMode==='single'?'primary':'default'" @click="viewMode='single'">
@@ -506,7 +720,7 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
     </div>
 
     <!-- ═════════ 单行模式（数据量大时禁用 TransitionGroup 避免卡顿） ═════════ -->
-    <div v-else-if="viewMode === 'single'" class="card overflow-hidden scrollbar-thin" style="overflow-x:auto;position:relative">
+    <div v-else-if="activeTemplate === 'single'" class="card overflow-hidden scrollbar-thin" style="overflow-x:auto;position:relative">
       <div class="min-w-[1230px]">
         <div class="table-header grid items-center gap-2 px-4 py-3 text-xs font-semibold"
              style="grid-template-columns: 22px 64px 64px 82px 210px 48px 100px minmax(0,1fr) 92px 70px 52px;color:var(--text-2)">
@@ -541,11 +755,10 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
             </div>
             <span class="text-xs font-mono" style="color:var(--text-3)">{{ formatTimeShort(item.first_seen_at) }}</span>
             <span class="text-violet-600 text-xs font-bold">{{ formatDuration(item.duration_seconds) }}</span>
-            <el-button
-              size="small" text type="primary" class="justify-center shrink-0 w-[40px] h-[28px]"
-              @click.stop="copyRecruit(item)"
-              title="复制该招募完整信息"
-            >📋 复制</el-button>
+            <a href="javascript:void(0)"
+               class="btn-copy btn-copy-row"
+               @click.stop.prevent="copyRecruit(item)"
+               title="复制该招募完整信息">📋 复制</a>
           </div>
         </TransitionGroup>
         <!-- 数据量大时直接渲染，无动画 -->
@@ -576,18 +789,18 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
             </div>
             <span class="text-xs font-mono" style="color:var(--text-3)">{{ formatTimeShort(item.first_seen_at) }}</span>
             <span class="text-violet-600 text-xs font-bold">{{ formatDuration(item.duration_seconds) }}</span>
-            <el-button
-              size="small" text type="primary" class="justify-center shrink-0 w-[40px] h-[28px]"
-              @click.stop="copyRecruit(item)"
-              title="复制该招募完整信息"
-            >📋 复制</el-button>
+            <a href="javascript:void(0)"
+               class="btn-copy btn-copy-row"
+               @click.stop.prevent="copyRecruit(item)"
+               title="复制该招募完整信息">📋 复制</a>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ═════════ 双列卡片模式 ═════════ -->
-    <TransitionGroup v-else-if="result.items.length <= 100" name="list" tag="div" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <TransitionGroup v-else-if="result.items.length <= 100" name="list" tag="div"
+                     :class="['gap-3', isMobile ? 'grid grid-cols-1' : 'grid grid-cols-1 lg:grid-cols-2']">
       <div
         v-for="item in result.items" :key="item.listing_id"
         class="card card-item p-4"
@@ -619,15 +832,14 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
         <div class="flex flex-wrap justify-between items-center gap-2 pt-2 text-xs" style="border-top:1px solid var(--border-2)">
           <span style="color:var(--text-3)">📅 <span class="font-mono" style="color:var(--text-2)">{{ formatTimeShort(item.first_seen_at) }}</span></span>
           <span style="color:var(--text-3)">⏱ <span class="text-violet-600 font-bold">{{ formatDuration(item.duration_seconds) }}</span></span>
-          <el-button
-            size="small" text type="primary"
-            @click.stop="copyRecruit(item)"
-            title="复制该招募完整信息"
-          >📋 复制招募</el-button>
+          <a href="javascript:void(0)"
+             class="btn-copy btn-copy-card"
+             @click.stop.prevent="copyRecruit(item)"
+             title="复制该招募完整信息">📋 复制招募</a>
         </div>
       </div>
     </TransitionGroup>
-    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div v-else :class="['gap-3', isMobile ? 'grid grid-cols-1' : 'grid grid-cols-1 lg:grid-cols-2']">
       <div
         v-for="item in result.items" :key="item.listing_id"
         class="card card-item p-4"
@@ -659,11 +871,10 @@ html.dark .el-date-table td .el-date-table-cell__text { color: #cbd5e1 !importan
         <div class="flex flex-wrap justify-between items-center gap-2 pt-2 text-xs" style="border-top:1px solid var(--border-2)">
           <span style="color:var(--text-3)">📅 <span class="font-mono" style="color:var(--text-2)">{{ formatTimeShort(item.first_seen_at) }}</span></span>
           <span style="color:var(--text-3)">⏱ <span class="text-violet-600 font-bold">{{ formatDuration(item.duration_seconds) }}</span></span>
-          <el-button
-            size="small" text type="primary"
-            @click.stop="copyRecruit(item)"
-            title="复制该招募完整信息"
-          >📋 复制招募</el-button>
+          <a href="javascript:void(0)"
+             class="btn-copy btn-copy-card"
+             @click.stop.prevent="copyRecruit(item)"
+             title="复制该招募完整信息">📋 复制招募</a>
         </div>
       </div>
     </div>
@@ -703,6 +914,9 @@ const App = {
     const viewMode = ref('single');
     const isDark = ref(false);
     const includeTW = ref(false); // 默认不显示繁中服
+    const aboutOpen = ref(false); // 关于弹窗开关
+    const isMobile = ref(false);  // 手机端：<= 768px 一律用卡片单列纵向排
+    let _mobileMql = null;
 
     // 数字动画相关
     const totalBumpKey = ref(0);
@@ -770,6 +984,20 @@ const App = {
     }
     const savedTW = localStorage.getItem('ffxiv-include-tw');
     if (savedTW === '1') { includeTW.value = true; }
+
+    // ── 关于弹窗开关 ──
+    function toggleAbout() { aboutOpen.value = !aboutOpen.value; }
+
+    // ── 手机端判定（<= 768px 一律走卡片模板单列纵向排，防止单行横向溢出右侧看不到）──
+    function _applyIsMobile() {
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        isMobile.value = window.matchMedia('(max-width: 768px)').matches;
+      } else {
+        isMobile.value = (typeof window !== 'undefined' ? window.innerWidth : 1200) <= 768;
+      }
+    }
+    // activeTemplate：大屏才看 viewMode，手机一律用卡片
+    const activeTemplate = computed(() => isMobile.value ? 'double' : viewMode.value);
 
     const excludeTWQuery = () => includeTW.value ? 'false' : 'true';
     async function reloadAll() {
@@ -1019,6 +1247,20 @@ const App = {
     }
 
     onMounted(() => {
+      // 手机端判定初始化 + resize / matchMedia 监听
+      _applyIsMobile();
+      if (typeof window !== 'undefined' && window.matchMedia) {
+        _mobileMql = window.matchMedia('(max-width: 768px)');
+        const _onChange = (e) => { isMobile.value = e.matches; };
+        if (typeof _mobileMql.addEventListener === 'function') {
+          _mobileMql.addEventListener('change', _onChange);
+        } else if (typeof _mobileMql.addListener === 'function') {
+          _mobileMql.addListener(_onChange);
+        }
+      } else if (typeof window !== 'undefined' && window.addEventListener) {
+        window.addEventListener('resize', _applyIsMobile);
+      }
+
       // 首屏优化：优先加载搜索结果（用户最想看的），下拉数据延迟 500ms 后加载
       searchHistory().then(() => {
         setTimeout(() => {
@@ -1035,16 +1277,25 @@ const App = {
 
     onUnmounted(() => {
       stopStatsPolling();
+      if (_mobileMql && typeof _mobileMql.removeEventListener === 'function') {
+        const _onChange = (e) => { isMobile.value = e.matches; };
+        _mobileMql.removeEventListener('change', _onChange);
+      } else if (_mobileMql && typeof _mobileMql.removeListener === 'function') {
+        const _onChange = (e) => { isMobile.value = e.matches; };
+        _mobileMql.removeListener(_onChange);
+      } else if (typeof window !== 'undefined' && window.removeEventListener) {
+        window.removeEventListener('resize', _applyIsMobile);
+      }
     });
 
     return {
       loading, stats, datacenters, worlds, categories, duties,
-      viewMode, isDark, includeTW, filter, result,
+      viewMode, isDark, includeTW, filter, result, aboutOpen, isMobile, activeTemplate,
       filteredDuties, activeFilterCount,
       // 动画相关变量
       totalBumpKey, activeBumpKey, totalBumpTrigger, activeBumpTrigger,
       totalDeltas, activeDeltas,
-      toggleTheme, toggleIncludeTW, onSearch, onPageChange, onReset,
+      toggleTheme, toggleIncludeTW, toggleAbout, onSearch, onPageChange, onReset,
       toggleDatacenter, clearDatacenter, toggleWorld, toggleStatus, onCategorySelect,
       getFilledCount, formatTimeShort, formatDuration, copyRecruit,
     };
