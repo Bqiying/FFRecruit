@@ -355,6 +355,7 @@ html.dark {
 }
 .delta-total { color: #6366f1; text-shadow: 0 1px 3px rgba(99,102,241,0.4); }
 .delta-active { color: #10b981; text-shadow: 0 1px 3px rgba(16,185,129,0.4); }
+.delta-today-new { color: #059669; text-shadow: 0 1px 3px rgba(16,185,129,0.45); font-weight: 700; }
 
 /* ═════════ 筛选 chip（无圆角） ═════════ */
 .filter-chip {
@@ -493,6 +494,11 @@ html.dark {
             <span style="color:var(--text-3)">进行中 </span>
             <span :key="'an_'+activeBumpKey" :class="{'number-bump': activeBumpTrigger}" class="text-emerald-600 font-bold">{{ stats.active_listings.toLocaleString() }}</span>
             <span v-for="d in activeDeltas" :key="d.id" class="delta-float delta-active">+{{ d.value }}</span>
+          </div>
+          <div class="stat-pill px-3.5 py-2 border" style="background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(52,211,153,0.08));border-color:rgba(16,185,129,0.25)">
+            <span style="color:var(--text-3)">今日新增 </span>
+            <span :key="'tnw_'+todayNewBumpKey" :class="{'number-bump': todayNewBumpTrigger}" class="font-bold" style="color:#059669">{{ (stats.today_new ?? 0).toLocaleString() }}</span>
+            <span v-for="d in todayNewDeltas" :key="d.id" class="delta-float delta-today-new">+{{ d.value }}</span>
           </div>
         </div>
         <button class="theme-toggle" @click="toggleIncludeTW"
@@ -906,7 +912,7 @@ const App = {
   setup() {
     const loading = ref(false);
     const stats = ref(null);
-    const prevStats = ref({ total_listings: -1, active_listings: -1 }); // 上一次的值，用于计算增量
+    const prevStats = ref({ total_listings: -1, active_listings: -1, today_new: -1 }); // 上一次的值，用于计算增量
     const datacenters = ref([]);
     const worlds = ref([]);
     const categories = ref([]);
@@ -921,10 +927,13 @@ const App = {
     // 数字动画相关
     const totalBumpKey = ref(0);
     const activeBumpKey = ref(0);
+    const todayNewBumpKey = ref(0);
     const totalBumpTrigger = ref(false);
     const activeBumpTrigger = ref(false);
+    const todayNewBumpTrigger = ref(false);
     const totalDeltas = ref([]); // { id, value }
     const activeDeltas = ref([]);
+    const todayNewDeltas = ref([]);
     let _deltaIdSeed = 0;
     let statsTimer = null; // 定时刷新定时器
 
@@ -938,6 +947,11 @@ const App = {
       activeBumpTrigger.value = true;
       setTimeout(() => { activeBumpTrigger.value = false; }, 500);
     }
+    function triggerTodayNewBump() {
+      todayNewBumpKey.value++;
+      todayNewBumpTrigger.value = true;
+      setTimeout(() => { todayNewBumpTrigger.value = false; }, 500);
+    }
     function pushTotalDelta(val) {
       const id = ++_deltaIdSeed;
       totalDeltas.value.push({ id, value: val });
@@ -950,6 +964,13 @@ const App = {
       activeDeltas.value.push({ id, value: val });
       setTimeout(() => {
         activeDeltas.value = activeDeltas.value.filter(d => d.id !== id);
+      }, 1200);
+    }
+    function pushTodayNewDelta(val) {
+      const id = ++_deltaIdSeed;
+      todayNewDeltas.value.push({ id, value: val });
+      setTimeout(() => {
+        todayNewDeltas.value = todayNewDeltas.value.filter(d => d.id !== id);
       }, 1200);
     }
 
@@ -977,7 +998,7 @@ const App = {
       includeTW.value = !includeTW.value;
       localStorage.setItem('ffxiv-include-tw', includeTW.value ? '1' : '0');
       // 切换繁中服时重置 prevStats，避免把"显示更多数据"误判为新增招募
-      prevStats.value = { total_listings: -1, active_listings: -1 };
+      prevStats.value = { total_listings: -1, active_listings: -1, today_new: -1 };
       // 切换繁中服显示时：1. 重新加载所有筛选下拉 2. 重新搜索
       filter.datacenter = ''; filter.world = '';
       reloadAll().then(() => onSearch());
@@ -1147,9 +1168,11 @@ const App = {
         const r = await fetch(`${API_BASE}/api/v1/stats?exclude_tw=${excludeTWQuery()}`);
         if (r.ok) {
           const newStats = await r.json();
+          if (typeof newStats.today_new !== 'number') newStats.today_new = 0;
           const isFirstLoad = prevStats.value.total_listings < 0;
           const prevTotal = prevStats.value.total_listings;
           const prevActive = prevStats.value.active_listings;
+          const prevTodayNew = prevStats.value.today_new;
 
           stats.value = newStats;
 
@@ -1157,6 +1180,7 @@ const App = {
           if (!isFirstLoad) {
             const totalDelta = newStats.total_listings - prevTotal;
             const activeDelta = newStats.active_listings - prevActive;
+            const todayNewDelta = newStats.today_new - (prevTodayNew ?? 0);
 
             if (totalDelta > 0) {
               await nextTick();
@@ -1176,11 +1200,22 @@ const App = {
               await nextTick();
               triggerActiveBump();
             }
+
+            if (todayNewDelta > 0) {
+              await nextTick();
+              pushTodayNewDelta(todayNewDelta);
+              triggerTodayNewBump();
+            } else if (todayNewDelta < 0) {
+              // 跨日重置 / 切换繁中服时也跳动一下
+              await nextTick();
+              triggerTodayNewBump();
+            }
           }
 
           prevStats.value = {
             total_listings: newStats.total_listings,
             active_listings: newStats.active_listings,
+            today_new: newStats.today_new,
           };
         }
       } catch {}
@@ -1293,8 +1328,9 @@ const App = {
       viewMode, isDark, includeTW, filter, result, aboutOpen, isMobile, activeTemplate,
       filteredDuties, activeFilterCount,
       // 动画相关变量
-      totalBumpKey, activeBumpKey, totalBumpTrigger, activeBumpTrigger,
-      totalDeltas, activeDeltas,
+      totalBumpKey, activeBumpKey, todayNewBumpKey,
+      totalBumpTrigger, activeBumpTrigger, todayNewBumpTrigger,
+      totalDeltas, activeDeltas, todayNewDeltas,
       toggleTheme, toggleIncludeTW, toggleAbout, onSearch, onPageChange, onReset,
       toggleDatacenter, clearDatacenter, toggleWorld, toggleStatus, onCategorySelect,
       getFilledCount, formatTimeShort, formatDuration, copyRecruit,

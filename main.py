@@ -516,6 +516,13 @@ async def get_stats(exclude_tw: bool = Query(default=True, description="是否�
         cur.execute(f"SELECT COUNT(*) FROM pf_history {where_a}", params_a)
         active = cur.fetchone()[0]
 
+        # 今日新增：以服务器本地时区 00:00:00 为界，first_seen_at >= 今天 00:00 的招募
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%S")
+        where_t, params_t = _where_and_params(f"first_seen_at >= {P}")
+        params_t.append(today_start)
+        cur.execute(f"SELECT COUNT(*) FROM pf_history {where_t}", params_t)
+        today_new = cur.fetchone()[0]
+
         where_d, params_d = _where_and_params()
         cur.execute(f"""
             SELECT datacenter, COUNT(*) as c
@@ -524,7 +531,7 @@ async def get_stats(exclude_tw: bool = Query(default=True, description="是否�
         """, params_d)
         datacenters = [{"datacenter": r[0], "count": r[1]} for r in cur.fetchall()]
         cur.close()
-        return {"total_listings": total, "active_listings": active, "datacenters": datacenters}
+        return {"total_listings": total, "active_listings": active, "today_new": today_new, "datacenters": datacenters}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"统计失败: {e}")
     finally:
