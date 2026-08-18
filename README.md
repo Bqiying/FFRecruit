@@ -8,7 +8,7 @@
 
 ## ✨ 功能
 
-- 每 2 分钟自动抓取国服招募数据，持续入库
+- 每 90 秒自动抓取国服招募数据（含随机 1-3 秒延迟），持续入库
 - 支持按 **大区 / 服务器 / 任务类型 / 副本 / 状态 / 队长名 / 日期范围** 筛选
 - 支持**关键词搜索**招募说明（如「绝亚」「7换1」「萌新教学」）
 - 繁中服（伊弗利特、利維坦等）默认隐藏，可一键切换显示
@@ -68,7 +68,7 @@ python run.py
 | `api.contact_email` | `your-email@example.com` | 请求头 User-Agent 中的**联系邮箱**（请务必改为真实邮箱） |
 | `api.referer` | `https://xivpf.ff14.xin/` | 请求头 Referer，一般无需修改 |
 | `api.api_url` | `https://xivpf.littlenightmare.top/api/listings` | 上游 API 地址，一般无需修改 |
-| `scraper.interval_seconds` | `120` | 轮询间隔（秒），建议不要小于 60 秒 |
+| `scraper.interval_seconds` | `90` | 轮询间隔（秒），建议不要小于 60 秒；每轮等待时会额外加上 1-3 秒随机延迟 |
 | `scraper.per_page` | `100` | 每页抓取数量，最大 100 |
 
 > 💡 `config.json` 已加入 `.gitignore`，不会被提交到 GitHub，可放心填写隐私信息。
@@ -122,7 +122,7 @@ User-Agent: MyFFXIV-PF-Tool (contact: me@example.com)
 
 ### 抓取策略
 
-- 抓取频率：**每 120 秒（2 分钟）** 一次，全量分页拉取（可在配置中调整）
+- 抓取频率：**每 90 秒** 一次（轮询间隔 + 随机 1-3 秒延迟），全量分页拉取（可在配置中调整）
 - 新招募：首次发现时记录入库
 - 已有招募：更新最后存活时间和队伍成员状态
 - 招募消失：自动标记为「已关闭」

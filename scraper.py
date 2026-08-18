@@ -1,7 +1,7 @@
 """
 FFXIV 国服招募板爬虫
 直接调用 xivpf.littlenightmare.top API 获取数据
-- 每 2 分钟爬一次
+- 默认每 90 秒爬一次（含每轮 1-3 秒随机延迟）
 - 自动获取全部分页
 - 存入 SQLite 数据库
 - 控制台实时显示新招募
@@ -16,6 +16,7 @@ import os
 import sys
 import json
 import time
+import random
 import sqlite3
 import argparse
 from datetime import datetime
@@ -71,7 +72,10 @@ UA_PROJECT = _API_CFG.get("user_agent_project") or "FFXIV-PF-History-Bot"
 UA_EMAIL = _API_CFG.get("contact_email") or ""
 REFERER = _API_CFG.get("referer") or "https://xivpf.ff14.xin/"
 API_URL = _API_CFG.get("api_url") or "https://xivpf.littlenightmare.top/api/listings"
-DEFAULT_INTERVAL = int(_SCR_CFG.get("interval_seconds") or 120)
+DEFAULT_INTERVAL = int(_SCR_CFG.get("interval_seconds") or 90)
+# 每轮轮询之间的随机抖动延迟（秒），避免固定节奏被上游识别
+JITTER_MIN = 1
+JITTER_MAX = 3
 PER_PAGE = int(_SCR_CFG.get("per_page") or 100)
 
 # 拼接 User-Agent（符合上游要求：项目名 + (contact: 邮箱)）
@@ -462,7 +466,7 @@ def main():
     print("\033[96m" + "=" * 110 + "\033[0m")
     print(f"  API:         {API_URL}")
     print(f"  数据库:      {DATABASE}")
-    print(f"  轮询间隔:    {args.interval} 秒")
+    print(f"  轮询间隔:    {args.interval} 秒 (+ 随机 {JITTER_MIN}-{JITTER_MAX} 秒延迟)")
     print(f"  每页数量:    {PER_PAGE}")
     print(f"  限制页数:    {args.pages or '自动（全量）'}")
     print(f"  User-Agent:  {_UA_STRING}")
@@ -493,7 +497,7 @@ def main():
             print(f"  \033[93m未获取到任何数据\033[0m")
             if args.once:
                 break
-            time.sleep(args.interval)
+            time.sleep(args.interval + random.randint(JITTER_MIN, JITTER_MAX))
             continue
         
         # 转换数据并写入数据库
@@ -541,7 +545,7 @@ def main():
             break
         
         print(f"\n  ⏳ 等待 {args.interval} 秒后继续... 按 Ctrl+C 停止")
-        time.sleep(args.interval)
+        time.sleep(args.interval + random.randint(JITTER_MIN, JITTER_MAX))
     
     conn.close()
     print("\n已退出")
