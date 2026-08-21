@@ -2,6 +2,8 @@
 FFXIV 国服招募板爬虫
 直接调用 xivpf.littlenightmare.top API 获取数据
 - 默认每 90 秒爬一次（含每轮 1-3 秒随机延迟）
+- 失败自动重试 + 智能退避（连续失败时逐级放大等待，避免上游故障时被误判）
+- 复用连接减少 TLS 握手，降低被风控注意的概率
 - 自动获取全部分页
 - 存入 SQLite 数据库
 - 控制台实时显示新招募
@@ -76,6 +78,11 @@ DEFAULT_INTERVAL = int(_SCR_CFG.get("interval_seconds") or 90)
 # 每轮轮询之间的随机抖动延迟（秒），避免固定节奏被上游识别
 JITTER_MIN = 1
 JITTER_MAX = 3
+# 失败退避：连续失败时等待时间逐级放大（秒），避免上游故障期间高频轰炸被误判为攻击
+# 成功一轮后自动重置为正常间隔；封顶 1 小时
+BACKOFF_STEPS = [300, 900, 1800, 3600]  # 5分钟 → 15分钟 → 30分钟 → 1小时
+# 单页请求失败后的重试次数（间隔递增）
+PAGE_RETRIES = 2
 PER_PAGE = int(_SCR_CFG.get("per_page") or 100)
 
 # 拼接 User-Agent（符合上游要求：项目名 + (contact: 邮箱)）
@@ -293,19 +300,34 @@ def enforce_one_active_per_creator(conn: sqlite3.Connection):
 # ─────────────── API 调用 ───────────────
 
 def fetch_page(client: httpx.Client, page: int, per_page: int = PER_PAGE) -> Optional[dict]:
-    """获取单页数据"""
-    try:
-        resp = client.get(
-            API_URL,
-            params={"page": page, "per_page": per_page},
-            headers=HEADERS,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as e:
-        print(f"    ⚠ 第 {page} 页请求失败: {e}")
-        return None
+    """获取单页数据，失败自动重试（间隔递增），避免单次抖动直接放弃整轮"""
+    for attempt in range(PAGE_RETRIES + 1):
+        try:
+            resp = client.get(
+                API_URL,
+                params={"page": page, "per_page": per_page},
+                headers=HEADERS,
+                timeout=60,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            if attempt < PAGE_RETRIES:
+                wait = 2 * (attempt + 1)
+                print(f"    ⚠ 第 {page} 页请求失败(第{attempt + 1}次重试): {e}，{wait} 秒后重试")
+                time.sleep(wait)
+            else:
+                print(f"    ⚠ 第 {page} 页请求失败(已重试 {PAGE_RETRIES} 次): {e}")
+                return None
+    return None
+
+
+def compute_wait(interval: int, consecutive_failures: int) -> int:
+    """计算下一轮等待秒数：连续失败时按 BACKOFF_STEPS 逐级退避；成功时用正常间隔+随机抖动"""
+    if consecutive_failures <= 0:
+        return interval + random.randint(JITTER_MIN, JITTER_MAX)
+    step = min(consecutive_failures - 1, len(BACKOFF_STEPS) - 1)
+    return BACKOFF_STEPS[step] + random.randint(JITTER_MIN, JITTER_MAX)
 
 
 def fetch_all_pages(client: httpx.Client, max_pages: Optional[int] = None) -> list:
@@ -467,12 +489,16 @@ def main():
     print(f"  API:         {API_URL}")
     print(f"  数据库:      {DATABASE}")
     print(f"  轮询间隔:    {args.interval} 秒 (+ 随机 {JITTER_MIN}-{JITTER_MAX} 秒延迟)")
+    print(f"  失败退避:    连续失败等待 {BACKOFF_STEPS[0]}s → {BACKOFF_STEPS[-1]}s 逐级放大，成功自动复位")
     print(f"  每页数量:    {PER_PAGE}")
     print(f"  限制页数:    {args.pages or '自动（全量）'}")
     print(f"  User-Agent:  {_UA_STRING}")
     print()
     
     conn = get_db()
+    # 复用连接（keep-alive），避免每轮重新 TLS 握手，降低被上游风控注意的概率
+    client = httpx.Client(timeout=60)
+    consecutive_failures = 0  # 连续失败次数，用于智能退避
     
     while True:
         now = datetime.now().strftime("%H:%M:%S")
@@ -481,24 +507,30 @@ def main():
         # 每轮重置：只保留「本轮真正获取到的」活跃 ID
         seen_ids = set()
         
-        client = httpx.Client(timeout=30)
         try:
             raw_items = fetch_all_pages(client, max_pages=args.pages)
         except Exception as e:
             import traceback
             print(f"\033[91m  爬取异常: {e}\033[0m")
             traceback.print_exc()
-            client.close()
-            time.sleep(30)
+            consecutive_failures += 1
+            wait = compute_wait(args.interval, consecutive_failures)
+            print(f"  \033[93m连续失败 {consecutive_failures} 次，退避 {wait} 秒后重试\033[0m")
+            time.sleep(wait)
             continue
-        client.close()
         
         if not raw_items:
             print(f"  \033[93m未获取到任何数据\033[0m")
             if args.once:
                 break
-            time.sleep(args.interval + random.randint(JITTER_MIN, JITTER_MAX))
+            consecutive_failures += 1
+            wait = compute_wait(args.interval, consecutive_failures)
+            print(f"  \033[93m连续失败 {consecutive_failures} 次，退避 {wait} 秒后重试\033[0m")
+            time.sleep(wait)
             continue
+        
+        # 本轮成功，重置失败计数
+        consecutive_failures = 0
         
         # 转换数据并写入数据库
         new_items = []
@@ -544,9 +576,11 @@ def main():
         if args.once:
             break
         
-        print(f"\n  ⏳ 等待 {args.interval} 秒后继续... 按 Ctrl+C 停止")
-        time.sleep(args.interval + random.randint(JITTER_MIN, JITTER_MAX))
+        wait = compute_wait(args.interval, consecutive_failures)
+        print(f"\n  ⏳ 等待 {wait} 秒后继续... 按 Ctrl+C 停止")
+        time.sleep(wait)
     
+    client.close()
     conn.close()
     print("\n已退出")
 
