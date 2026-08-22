@@ -12,6 +12,7 @@ FFXIV 国服招募板爬虫
   python scraper.py              # 持续运行
   python scraper.py --once       # 只爬一次
   python scraper.py --pages 3    # 只爬前 3 页
+  python scraper.py --once --export sync.json   # 爬一次并导出增量（供服务器导入）
 """
 
 import os
@@ -49,7 +50,8 @@ def _load_config() -> dict:
     used_file = None
     if os.path.isfile(config_path):
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            # utf-8-sig：兼容 Windows 记事本/PowerShell 写入的带 BOM 文件
+            with open(config_path, "r", encoding="utf-8-sig") as f:
                 cfg = json.load(f)
             used_file = "config.json"
         except Exception as e:
@@ -57,7 +59,7 @@ def _load_config() -> dict:
 
     if not cfg and os.path.isfile(example_path):
         try:
-            with open(example_path, "r", encoding="utf-8") as f:
+            with open(example_path, "r", encoding="utf-8-sig") as f:
                 cfg = json.load(f)
             used_file = "config.example.json (默认)"
         except Exception as e:
@@ -330,6 +332,39 @@ def compute_wait(interval: int, consecutive_failures: int) -> int:
     return BACKOFF_STEPS[step] + random.randint(JITTER_MIN, JITTER_MAX)
 
 
+def export_incremental(conn: sqlite3.Connection, listing_ids: list, closed_ids: list, out_path: str) -> int:
+    """
+    导出增量数据（供服务器端 import_incremental.py 导入）：
+    - listing_ids: 本轮新增/更新的招募 ID（导出完整行）
+    - closed_ids:  本轮被关闭的招募 ID（服务器端同步标记 is_closed=1）
+    返回导出的条目数
+    """
+    cur = conn.cursor()
+    items = []
+    cols = [
+        "listing_id", "datacenter", "world", "creator_name", "home_world", "category",
+        "duty_id", "duty_name", "description", "min_item_level",
+        "has_password", "slots", "first_seen_at", "last_seen_at", "is_closed",
+    ]
+    for lid in listing_ids:
+        row = cur.execute(
+            f"SELECT {', '.join(cols)} FROM pf_history WHERE listing_id = ?", (lid,)
+        ).fetchone()
+        if row:
+            items.append(dict(zip(cols, row)))
+
+    payload = {
+        "exported_at": datetime.now().isoformat(),
+        "items": items,
+        "closed_ids": list(closed_ids),
+    }
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    cur.close()
+    print(f"  📦 已导出增量: {len(items)} 条新增/更新 + {len(closed_ids)} 条关闭 → {out_path}")
+    return len(items)
+
+
 def fetch_all_pages(client: httpx.Client, max_pages: Optional[int] = None) -> list:
     """获取所有页面数据"""
     # 先获取第一页，得到总页数
@@ -481,6 +516,7 @@ def main():
     parser.add_argument("--once", action="store_true", help="只爬一次然后退出")
     parser.add_argument("--pages", type=int, help="限制爬取页数")
     parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL, help="轮询间隔（秒）")
+    parser.add_argument("--export", type=str, metavar="PATH", help="抓取完成后导出增量数据到该文件（配合 --once 使用，供服务器导入）")
     args = parser.parse_args()
     
     print("\033[96m" + "=" * 110 + "\033[0m")
@@ -549,6 +585,8 @@ def main():
                 print(f"    \033[91m写入失败: {item.get('listing_id')} - {e}\033[0m")
         
         # ① 关闭不在当前列表中的招募（本轮没看到的 = 已经给上游下架了）
+        #    记录关闭前后活跃集合，算出「本轮新关闭的 ID」用于增量导出
+        active_before = {r[0] for r in conn.execute("SELECT listing_id FROM pf_history WHERE is_closed = 0")}
         close_stale_listings(conn, seen_ids)
         
         # ② 业务规则兜底：同一个角色（creator_name + home_world）只能有 1招募进行中
@@ -556,6 +594,14 @@ def main():
         closed_extra = enforce_one_active_per_creator(conn)
         if closed_extra > 0:
             print(f"  \033[93m[规则兜底] 强制关闭 {closed_extra} 条同角色重复招募\033[0m")
+        
+        active_after = {r[0] for r in conn.execute("SELECT listing_id FROM pf_history WHERE is_closed = 0")}
+        newly_closed = active_before - active_after
+        
+        # ③ 增量导出：新增 + 更新的招募完整行 + 本轮新关闭的 ID
+        if args.export:
+            changed_ids = [item["listing_id"] for item in new_items] + [item["listing_id"] for item in updated_items]
+            export_incremental(conn, changed_ids, newly_closed, args.export)
         
         # 统计
         total_active = conn.execute("SELECT COUNT(*) FROM pf_history WHERE is_closed = 0").fetchone()[0]
