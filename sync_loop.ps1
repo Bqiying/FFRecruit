@@ -1,46 +1,46 @@
 # ============================================================
-# FFRecruit 电脑端自动同步循环脚本
-# 每轮: 抓取(--once) -> 导出增量(sync.json) -> scp上传 -> 服务器导入
-# 用法:  PowerShell 里运行  .\sync_loop.ps1
-# 停止:  Ctrl+C
+# FFRecruit auto-sync loop (run on your PC)
+# Each round: fetch (--once) -> export incremental (sync.json)
+#             -> scp upload -> server import
+# Usage:  .\sync_loop.ps1    (stop with Ctrl+C)
 # ============================================================
 
 $ErrorActionPreference = "Continue"
 
-# ── 配置区（按需修改）──
-$ServerHost   = "root@8.138.36.24"     # 服务器 SSH 地址
-$RemoteTmp    = "/tmp/sync.json"       # 增量文件上传位置
-$RemoteCmd    = "cd /opt/FFRecruit && python3 import_incremental.py $RemoteTmp"  # 服务器导入命令
-$LoopSeconds  = 120                    # 每轮间隔（秒），约 2 分钟
-$ProjectDir   = "E:\py\ffRecruit"      # 本地项目目录
+# ---- Config (edit as needed) ----
+$ServerHost   = "root@8.138.36.24"                                   # server SSH
+$RemoteTmp    = "/tmp/sync.json"                                     # remote upload path
+$RemoteCmd    = "cd /opt/FFRecruit && python3 import_incremental.py $RemoteTmp"
+$LoopSeconds  = 120                                                  # loop interval (s)
+$ProjectDir   = "E:\py\ffRecruit"                                    # local project dir
 
-# ── 主循环 ──
+# ---- Main loop ----
 Set-Location $ProjectDir
-Write-Host "==== FFRecruit 自动同步已启动 ====" -ForegroundColor Cyan
-Write-Host "服务器: $ServerHost | 间隔: ${LoopSeconds}秒 | Ctrl+C 停止"
+Write-Host "==== FFRecruit auto-sync started ====" -ForegroundColor Cyan
+Write-Host "Server: $ServerHost | Interval: ${LoopSeconds}s | Ctrl+C to stop"
 
 while ($true) {
     $ts = Get-Date -Format "HH:mm:ss"
-    Write-Host "`n[$ts] === 开始新一轮抓取 ===" -ForegroundColor Green
+    Write-Host "`n[$ts] === New round ===" -ForegroundColor Green
 
-    # 1. 抓取一轮 + 导出增量
+    # 1. Fetch one round + export incremental
     python scraper.py --once --export sync.json
 
-    # 2. 上传增量 + 服务器导入
+    # 2. Upload incremental + import on server
     if (Test-Path "$ProjectDir\sync.json") {
-        Write-Host "[$ts] 上传增量到服务器..." -ForegroundColor Yellow
+        Write-Host "[$ts] Uploading incremental..." -ForegroundColor Yellow
         scp -q "$ProjectDir\sync.json" "${ServerHost}:$RemoteTmp"
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "[$ts] 服务器导入..." -ForegroundColor Yellow
+            Write-Host "[$ts] Importing on server..." -ForegroundColor Yellow
             ssh -o BatchMode=yes $ServerHost $RemoteCmd
         } else {
-            Write-Host "[$ts] scp 上传失败，跳过导入" -ForegroundColor Red
+            Write-Host "[$ts] scp upload failed, skip import" -ForegroundColor Red
         }
     } else {
-        Write-Host "[$ts] 本轮未生成增量文件（可能抓取失败），跳过上传" -ForegroundColor Red
+        Write-Host "[$ts] No incremental file (fetch may have failed), skip upload" -ForegroundColor Red
     }
 
-    # 3. 等待下一轮
-    Write-Host "[$ts] 等待 ${LoopSeconds} 秒后继续..."
+    # 3. Wait for next round
+    Write-Host "[$ts] Waiting ${LoopSeconds}s..."
     Start-Sleep -Seconds $LoopSeconds
 }
