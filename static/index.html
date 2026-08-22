@@ -465,6 +465,26 @@ html.dark {
   animation: shimmer 1.2s infinite;
 }
 @keyframes shimmer { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+/* ═════════ 上游维护提示横幅 ═════════ */
+.maintenance-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  background: linear-gradient(90deg, rgba(245,158,11,0.16), rgba(239,68,68,0.14));
+  border-bottom: 1px solid rgba(245,158,11,0.35);
+}
+.maintenance-banner .maint-icon { font-size: 15px; flex-shrink: 0; }
+.maintenance-banner b { color: #d97706; }
+html.dark .maintenance-banner b { color: #fbbf24; }
+.maintenance-banner .maint-hint { opacity: 0.85; }
+@media (max-width: 768px) {
+  .maintenance-banner { font-size: 12px; padding: 8px 12px; align-items: flex-start; }
+}
 </style>
 </head>
 
@@ -517,6 +537,16 @@ html.dark {
       </div>
     </div>
   </header>
+
+  <!-- ═════════ 上游维护提示（接口中断时显示，历史数据仍可搜索） ═════════ -->
+  <div v-if="stats && stats.upstream_down" class="maintenance-banner" role="alert">
+    <span class="maint-icon">⚠️</span>
+    <span>
+      <b>上游接口中断，数据维护中</b>：与上游数据源的同步已中断（最后同步 {{ formatTimeShort(stats.last_sync_at) }}），
+      当前「进行中」状态为最后一次同步结果、可能不准确。
+      <span class="maint-hint">历史招募仍可正常搜索。</span>
+    </span>
+  </div>
 
   <!-- ═════════ 关于弹窗 ═════════ -->
   <el-dialog

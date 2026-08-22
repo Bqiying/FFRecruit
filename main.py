@@ -358,6 +358,10 @@ def _row_to_item(row: Any) -> dict[str, Any]:
 _count_cache: dict[str, tuple[int, float]] = {}
 _COUNT_CACHE_TTL = 30  # 秒
 
+# 上游中断判定：超过该秒数没有成功同步（爬虫成功抓取会刷新 MAX(last_seen_at)），
+# 则认为上游接口中断 / 数据处于维护状态。正常 90 秒一轮，10 分钟阈值足够宽松
+STALE_AFTER_SECONDS = 600
+
 def _cached_count(cache_key: str, count_sql: str, params: list, conn) -> int:
     """带缓存的 COUNT 查询，相同 cache_key 30 秒内不重复查"""
     now = _time.time()
@@ -530,8 +534,25 @@ async def get_stats(exclude_tw: bool = Query(default=True, description="是否�
             GROUP BY datacenter ORDER BY c DESC LIMIT 10
         """, params_d)
         datacenters = [{"datacenter": r[0], "count": r[1]} for r in cur.fetchall()]
+
+        # 上游健康信号：爬虫每次成功抓取都会刷新 MAX(last_seen_at)，
+        # 距现在超过 STALE_AFTER_SECONDS 未更新 => 上游接口中断 / 维护中
+        cur.execute("SELECT MAX(last_seen_at) FROM pf_history")
+        last_seen_raw = cur.fetchone()[0]
+        last_sync_at: Optional[str] = None
+        upstream_down = False
+        if last_seen_raw:
+            parsed = _parse_time(last_seen_raw)
+            if parsed:
+                last_sync_at = parsed.isoformat()
+                upstream_down = (datetime.now() - parsed).total_seconds() > STALE_AFTER_SECONDS
+
         cur.close()
-        return {"total_listings": total, "active_listings": active, "today_new": today_new, "datacenters": datacenters}
+        return {
+            "total_listings": total, "active_listings": active, "today_new": today_new, "datacenters": datacenters,
+            "last_sync_at": last_sync_at,
+            "upstream_down": upstream_down,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"统计失败: {e}")
     finally:
