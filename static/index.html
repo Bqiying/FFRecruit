@@ -485,6 +485,33 @@ html.dark .maintenance-banner b { color: #fbbf24; }
 @media (max-width: 768px) {
   .maintenance-banner { font-size: 12px; padding: 8px 12px; align-items: flex-start; }
 }
+
+/* ═════════ 新数据提示浮层（服务器同步了新数据时出现） ═════════ */
+.newdata-toast {
+  position: fixed; right: 20px; bottom: 24px; z-index: 2000;
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 16px;
+  font-size: 13px; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  box-shadow: 0 8px 24px rgba(99,102,241,0.45);
+  cursor: pointer; user-select: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+  animation: toast-in 0.28s ease-out;
+}
+.newdata-toast:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(99,102,241,0.55); }
+.newdata-toast .toast-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #4ade80; flex-shrink: 0;
+  animation: toast-pulse 1.6s infinite;
+}
+@keyframes toast-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0.75); }
+  70%  { box-shadow: 0 0 0 8px rgba(74,222,128,0); }
+  100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 768px) {
+  .newdata-toast { right: 12px; left: 12px; bottom: 12px; justify-content: center; }
+}
 </style>
 </head>
 
@@ -930,6 +957,12 @@ html.dark .maintenance-banner b { color: #fbbf24; }
     </div>
 
   </main>
+
+  <!-- ═════════ 新数据提示（服务器已同步新数据，点击刷新列表） ═════════ -->
+  <div v-if="hasNewData" class="newdata-toast" @click="onRefreshNewData" title="点击刷新列表">
+    <span class="toast-dot"></span>
+    <span>已同步最新数据，点击刷新</span>
+  </div>
 </div>
 
 <script>
@@ -943,6 +976,8 @@ const App = {
     const loading = ref(false);
     const stats = ref(null);
     const prevStats = ref({ total_listings: -1, active_listings: -1, today_new: -1 }); // 上一次的值，用于计算增量
+    const knownSyncAt = ref(null);   // 已知的服务器最后同步时间（last_sync_at）
+    const hasNewData = ref(false);   // 服务器已同步新数据、当前列表待刷新
     const datacenters = ref([]);
     const worlds = ref([]);
     const categories = ref([]);
@@ -1179,6 +1214,9 @@ const App = {
         result.items = data.items || [];
         result.total_count = data.total_count ?? 0;
         result.total_pages = data.total_pages ?? 0;
+        // 已经拉取到最新数据 → 清除「新数据」提示，并把基准时间对齐到服务器当前同步时间
+        hasNewData.value = false;
+        if (stats.value && stats.value.last_sync_at) knownSyncAt.value = stats.value.last_sync_at;
       } catch (e) {
         ElementPlus.ElMessage.error('搜索失败: ' + e.message);
         result.items = []; result.total_count = 0; result.total_pages = 0;
@@ -1193,6 +1231,13 @@ const App = {
       await searchHistory();
     }
 
+    // ── 点击「新数据」提示：刷新列表 + 同步时间基准 ──
+    async function onRefreshNewData() {
+      hasNewData.value = false;
+      await onSearch();
+      await loadStats();
+    }
+
     async function loadStats() {
       try {
         const r = await fetch(`${API_BASE}/api/v1/stats?exclude_tw=${excludeTWQuery()}`);
@@ -1205,6 +1250,15 @@ const App = {
           const prevTodayNew = prevStats.value.today_new;
 
           stats.value = newStats;
+
+          // 服务器同步检测：last_sync_at 变化 = 电脑端已把新数据同步进服务器
+          if (newStats.last_sync_at) {
+            if (knownSyncAt.value === null) {
+              knownSyncAt.value = newStats.last_sync_at;   // 首次记录基准，不提示
+            } else if (newStats.last_sync_at !== knownSyncAt.value) {
+              hasNewData.value = true;                     // 数据更新了，提示用户刷新
+            }
+          }
 
           // 首次加载只保存 prev，不触发动画
           if (!isFirstLoad) {
@@ -1362,6 +1416,7 @@ const App = {
       totalBumpTrigger, activeBumpTrigger, todayNewBumpTrigger,
       totalDeltas, activeDeltas, todayNewDeltas,
       toggleTheme, toggleIncludeTW, toggleAbout, onSearch, onPageChange, onReset,
+      hasNewData, onRefreshNewData,
       toggleDatacenter, clearDatacenter, toggleWorld, toggleStatus, onCategorySelect,
       getFilledCount, formatTimeShort, formatDuration, copyRecruit,
     };
